@@ -55,15 +55,15 @@ def readDataSets():
 	#Creating two datasets objects. One for traingin and another for testing.
 	train = Dataset(data1)
 	testing = Dataset(data2)
-	return Datasets(train=train,testing=test)
+	return Datasets(train=train,test=testing)
 
 
 class Dataset:
 	def __init__(self,images):
-	    self._images = images[0]
-	    self._labels = images[1]
+		self._images = images[0]
+		self._labels = images[1]
+		self.samples = self._images.shape[0]
 		self.epoch_index = 0
-		self.samples = len(self.images)
 
 	def next_batch(self, batch_size):
 		if batch_size > self.samples:

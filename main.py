@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import sys
-from WaterDetection.Dataset import input_data
+from ObjectOnFloorDetectionNN.Dataset import input_data
 
 data = input_data.readDataSets()
 trainImgs = data.train.images()
