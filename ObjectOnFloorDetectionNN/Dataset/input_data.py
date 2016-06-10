@@ -26,7 +26,6 @@ def check_dir(dir1, dir2):
 	dir1_len = len([name for name in os.listdir(dir1) if os.path.isfile(os.path.join(dir1, name))])
 	dir2_len = len([name for name in os.listdir(dir2) if os.path.isfile(os.path.join(dir2, name))])
 	# if one of the two directories is empty the program stops
-	print (dir1_len,dir2_len)
 	if dir1_len == dir2_len and (dir1_len!=0 and dir2_len!=0):
 		return True
 	raise ValueError("Dataset error...number of files in training or testing directories are not the same")
@@ -75,9 +74,7 @@ class Dataset:
 		if self.epoch_index > self.samples:
 			# Shuffle the indexes
 			temp = np.array([i for i in range(self.samples)])
-			# print(temp)
-			np.random.shuffle(temp)
-			# print(temp)
+			p.random.shuffle(temp)
 			# Shuffle the data
 			self._images = self._images[temp]
 			self._labels = self._labels[temp]
@@ -94,3 +91,5 @@ class Dataset:
 
 	def labels(self):
 		return self._labels
+	def size(self):
+		return self._images.shape[0]
