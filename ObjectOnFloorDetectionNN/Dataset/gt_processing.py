@@ -2,55 +2,24 @@ import numpy as np
 import cv2
 import os
 
-directory = "datasets/training_data/images/"
+directory = "/home/harry/Documents/Training_Sets/"
 
-images = []
+images, labels = sorted(os.listdir(directory + "/Images")), sorted(os.listdir(directory + "/Labels"))
 
-for file in os.listdir(directory):
-	if file.endswith(".jpeg") or file.endswith(".JPEG"):
-		print(str(file))
+npyImages, npyLabels = [], []
 
-		image = cv2.imread(directory + '/' + str(file))
-		
-		# print(image.shape)
-		
-		images.append(image)
+if len(images) == len(labels):
+  for i, l in zip(images, labels):
+    if ".jpeg" or ".JPEG" in i and l:
+      print(str(i) + "\n" + str(l) + "\n\n")
 
-images = np.array(images)
+      npyImages.append(cv2.imread(directory + 'Images/' + str(i)))
+      npyLabels.append(cv2.imread(directory + 'Labels/' + str(l), cv2.IMREAD_GRAYSCALE).reshape(500 * 500))
 
-np.save('images',images)
+  npyImages = np.array(npyImages)
+  npyLabels = np.array(npyLabels)
 
-# img2 = np.load('images.npy')
-# print(img2.shape)
-# cv2.imshow('img',img2[0])
-# cv2.waitKey()
-
-directory = "datasets/training_data/labels/"
-
-images = []
-
-for file in os.listdir(directory):
-	if file.endswith(".jpg") or file.endswith(".JPG"):
-		print(str(file))
-
-		image = cv2.imread(directory+'/'+str(file),cv2.IMREAD_GRAYSCALE)
-		
-		rows, cols = image.shape
-		
-		image = image.reshape(rows*cols)
-		
-		images.append(image)
-
-images = np.array(images)
-
-np.save('labels',images)
-
-img2 = np.load('labels.npy')
-
-# print(img2.shape)
-
-img1 = img2[0].reshape(536, 858)
-
-cv2.imshow('img', img1)
-
-cv2.waitKey()
+  np.save('npyImages', npyImages)
+  np.save('npyLabels', npyLabels)
+else:
+  print("The length of the directories is not the same!")
