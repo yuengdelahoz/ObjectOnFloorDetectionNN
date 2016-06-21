@@ -1,5 +1,6 @@
 import cv2
-
-cv2.imshow('image', np.load('npyImages.npy')[101])
-cv2.imshow('image2', np.load('npyLabels.npy')[101].reshape(500, 500))
+import numpy as np
+# This file will show an specific image of the labels and image
+cv2.imshow('image', np.load('npyImages.npy')[106])
+cv2.imshow('image2', np.load('npyLabels.npy')[106].reshape(500, 500))
 cv2.waitKey()
