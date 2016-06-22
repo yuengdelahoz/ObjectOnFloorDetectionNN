@@ -3,7 +3,8 @@ import cv2
 import os
 
 # full directory to the Images
-directory = "/home/harry/Documents/Training_Sets/"
+# directory = "/home/harry/Documents/Training_Sets/"
+directory = "/home/harry/Documents/Test_Sets/"
 
 # List of Images and Labels sorted.
 images, labels = sorted(os.listdir(directory + "/Images")), sorted(os.listdir(directory + "/Labels"))
@@ -25,8 +26,8 @@ if len(images) == len(labels): # Validation of the size of the images and labels
   npyLabels = np.array(npyLabels)
 
   # saving the arrays as .npy to the file system
-  np.save('npyImages', npyImages)
-  np.save('npyLabels', npyLabels)
+  np.save(directory + 'npyImages', npyImages)
+  np.save(directory + 'npyLabels', npyLabels)
 else:
   # message printed if the length of the images and length are not the same
   print("The length of the directories is not the same!")

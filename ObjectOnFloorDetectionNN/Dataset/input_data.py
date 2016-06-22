@@ -7,56 +7,6 @@ import collections
 
 Datasets = collections.namedtuple('Datasets', ['train', 'test'])
 
-def flatten(image):
-	if (len(image.shape)) == 2:
-		return image.ravel()
-
-	data = []
-	data.append(image[:,:,0].ravel())
-	data.append(image[:,:,1].ravel())
-	data.append(image[:,:,2].ravel())
-
-	# data = tf.cast(np.array(data).ravel(), tf.float32)
-
-	return np.array(data).ravel()
-	# return np.array(data).ravel()
-
-def check_dir(dir1, dir2):
-	# This methods checks if the content of both dir is of the same size
-	dir1_len = len([name for name in os.listdir(dir1) if os.path.isfile(os.path.join(dir1, name))])
-	dir2_len = len([name for name in os.listdir(dir2) if os.path.isfile(os.path.join(dir2, name))])
-	# if one of the two directories is empty the program stops
-	if dir1_len == dir2_len and (dir1_len!=0 and dir2_len!=0):
-		return True
-	raise ValueError("Dataset error...number of files in training or testing directories are not the same")
-
-def read_dir(directory):
-	data = []
-	for file in os.listdir(directory):
-		if file.endswith(".jpg") or file.endswith(".JPG"):
-			image = cv2.imread(directory+'/'+str(file))
-			data.append(image)
-	data = np.array(data)
-	print (data.shape)
-	return data
-
-def check_and_read(dir1, dir2):
-	if check_dir(dir1, dir2):
-		return read_dir(dir1), read_dir(dir2)
-
-def readDataSets():
-	# get path of current file (input_data.py)
-	directory = os.path.dirname(__file__)
-	# read traing images and labels from folder "datasets"
-	data1 = check_and_read(directory + '/datasets/training_data/images', directory + '/datasets/training_data/labels')
-	# read testing images and labels from folder "datasets"
-	data2 = check_and_read(directory + '/datasets/test_data/images', directory + '/datasets/test_data/labels')
-	#Creating two datasets objects. One for traingin and another for testing.
-	train = Dataset(data1)
-	testing = Dataset(data2)
-	return Datasets(train=train,test=testing)
-
-
 class Dataset:
 	def __init__(self,images):
 		self._images = images[0]
@@ -74,7 +24,7 @@ class Dataset:
 		if self.epoch_index > self.samples:
 			# Shuffle the indexes
 			temp = np.array([i for i in range(self.samples)])
-			p.random.shuffle(temp)
+			np.random.shuffle(temp)
 			# Shuffle the data
 			self._images = self._images[temp]
 			self._labels = self._labels[temp]
@@ -93,3 +43,41 @@ class Dataset:
 		return self._labels
 	def size(self):
 		return self._images.shape[0]
+
+
+def flatten(image):
+	if (len(image.shape)) == 2:
+		return image.ravel()
+
+	data = []
+	data.append(image[:,:,0].ravel())
+	data.append(image[:,:,1].ravel())
+	data.append(image[:,:,2].ravel())
+
+	# data = tf.cast(np.array(data).ravel(), tf.float32)
+
+	return np.array(data).ravel()
+	# return np.array(data).ravel()
+
+def read_dir(directory):
+	data = []
+	for file in os.listdir(directory):
+		if file.endswith(".jpg") or file.endswith(".JPG"):
+			image = cv2.imread(directory+'/'+str(file))
+			data.append(image)
+	data = np.array(data)
+	print (data.shape)
+	return data
+
+def readDataSets():
+	# get path of current file (input_data.py)
+	training, testing = ("/home/harry/Documents/Training_Sets"), "/home/harry/Documents/Test_Sets"
+	
+	testImages, testLabels = np.load("/home/harry/Documents/Test_Sets/npyImages.npy"), np.load("/home/harry/Documents/Test_Sets/npyLabels.npy")
+	trainImages, trainLabels = np.load("/home/harry/Documents/Training_Sets/npyImages.npy"), np.load("/home/harry/Documents/Training_Sets/npyLabels.npy")
+
+	#Creating two datasets objects. One for training and another for testing.
+	test = Dataset([testImages, testLabels])
+	train = Dataset([trainImages, trainImages])
+
+	return Datasets(train=train, test=testing)
