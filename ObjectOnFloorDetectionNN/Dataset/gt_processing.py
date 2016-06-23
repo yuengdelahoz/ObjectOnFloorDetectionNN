@@ -3,8 +3,8 @@ import cv2
 import os
 
 # full directory to the Images
-# directory = "/home/harry/Documents/Training_Sets/"
-directory = "/home/harry/Documents/Test_Sets/"
+directory = "/home/harry/Documents/Training_Sets/"
+# directory = "/home/harry/Documents/Test_Sets/"
 
 # List of Images and Labels sorted.
 images, labels = sorted(os.listdir(directory + "/Images")), sorted(os.listdir(directory + "/Labels"))
