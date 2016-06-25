@@ -71,7 +71,7 @@ def read_dir(directory):
 
 def readDataSets():
 	# get path of current file (input_data.py)
-	training, testing = ("/home/harry/Documents/Training_Sets"), ("/home/harry/Documents/Test_Sets")
+	training, testing = ("/home/a1mb0t/Documents/Training_Sets"), ("/home/a1mb0t/Documents/Test_Sets")
 
 	# Loading the npy array of images and labels to the array variables
 	testImages, testLabels = np.load(testing + "/npyImages.npy"), np.load(testing + "/npyLabels.npy")

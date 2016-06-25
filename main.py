@@ -77,7 +77,7 @@ l6_output = tf.nn.relu(tf.matmul(l5_output, l6_W) + l6_b)
 # Preparing weights and biases of the fourth fully connected layer
 l7_W = set_Weights([500000, 250000])
 l7_b = set_Bias([250000])
-l7_output = tf.matmul(l6_output, l7_W) + l7_b
+l7_output = tf.add(l7_b, tf.matmul(l6_output, l7_W))
 #######################################################################################################################
 
 # loss function
@@ -89,12 +89,10 @@ train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
 correct_prediction = tf.equal(tf.argmax(l7_output, 1), tf.argmax(y_, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-# Initializing all the network variables
+
 
 with tf.Session() as sess:
   sess.run(tf.initialize_all_variables()) # Initializing all the network variables
-
-  lstt = tf.trainable_variables()
 
   for i in range(50):
     batch = data.train.next_batch(50)
