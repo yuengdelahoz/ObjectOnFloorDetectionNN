@@ -30,71 +30,52 @@ y_ = tf.placeholder(tf.float32, shape=[None, 250000])
 
 # Preparing the Weights for filters of the first convolutional layer
 # [filter_height, filter_width, input_image_channels, number_of_filters]
-l1_W = set_Weights([3, 3, 3, 5])
+l1_W = set_Weights([28, 28, 3, 5])
 l1_b = set_Bias([5]) # Setting the filters Bias
 l1_output = tf.nn.relu(conv2d(x, l1_W, 1) + l1_b) # [None, 500/1, 500/1, 5] => output_size = [None, 500, 500, 5]
-l1_maxpool_output = max_pool(l1_output, 2) # [None, 500/2, 500/2, 5] => output_size = [None, 250, 250, 5]
 
 # Preparing the weights and filters of the second convolutional layer
 # [filter_height, filter_width, input_past_layer_channels, number_of_filters_of_this_layer]
-l2_W = set_Weights([5, 5, 5, 25])
-l2_b = set_Bias([25])
-l2_output = tf.nn.relu(conv2d(l1_maxpool_output, l2_W, 2) + l2_b)  # [None, 250/2, 250/2, 25] => 
-                                                                # output_size = [None, 125, 125, 25]
-l2_maxpool_output = max_pool(l2_output, 4) # [None, 125/4, 125/4, 25] => output_size = [None, 32, 32, 25]
+l2_W = set_Weights([21, 21, 5, 9])
+l2_b = set_Bias([9])
+l2_output = tf.nn.relu(conv2d(l1_output, l2_W, 2) + l2_b)  # [None, 500/2, 500/2, 9] => 
+                                                                # output_size = [None, 250, 250, 9]
 
 # Preparing the weights and filters of the third convolutional layer
 # [filter_height, filter_width, input_past_layer_channels, number_of_filters_of_this_layer]
-l3_W = set_Weights([7, 7, 25, 50])
-l3_b = set_Bias([50])
-l3_output = tf.nn.relu(conv2d(l2_maxpool_output, l3_W, 4) + l3_b) # [None, 32/4, 32/4, 50] 
-#                                                                 => output_layer = [None, 8, 8, 50]
+l3_W = set_Weights([14, 14, 9, 11])
+l3_b = set_Bias([11])
+l3_output = tf.nn.relu(conv2d(l2_output, l3_W, 5) + l3_b) # [None, 250/5, 250/5, 11] 
+#                                                                 => output_layer = [None, 50, 50, 11]
 
-l3_maxpool_output = max_pool(l3_output, 2) # [None, 8/2, 8/2, 50] => output = [None, 4, 4, 50]
+# Preparing fourth convolutional layer
+l4_W = set_Weights([7, 7, 11, 13])
+l4_b = set_Bias([13])
+l4_output = tf.nn.relu(conv2d(l3_output, l4_W, 2) + l4_b)  # [None, 50/2, 50/2, 13] => [None,  25, 25, 13]
 
-# Flattening third convolutional layer output to enter it to the first fully connected layer
-l3_output_flat = tf.reshape(l3_maxpool_output, [-1, 4 * 4 * 50])
-
+l4_output_flat = tf.reshape(l4_output, [-1, 25 * 25 * 13])
 #######################################################################################################################
 
 #################################################FULLY CONNECTED LAYERS################################################
 
-# Preparing the weights and biases of the first fully connected layer
-l4_W = set_Weights([4 * 4 * 50, 1000000])
-l4_b = set_Bias([1000000])
-l4_output = tf.nn.relu(tf.matmul(l3_output_flat, l4_W) + l4_b)
-
 # Preparing the weights and biases of the second fully connected layer
-l5_W = set_Weights([1000000, 750000])
-l5_b = set_Bias([750000])
-l5_output = tf.nn.relu(tf.matmul(l4_output, l5_W) + l5_b)
-
-# Preparing weights and biases of the third fully connected layer
-l6_W = set_Weights([750000, 500000])
-l6_b = set_Bias([500000])
-l6_output = tf.nn.relu(tf.matmul(l5_output, l6_W) + l6_b)
-
-# Preparing weights and biases of the fourth fully connected layer
-l7_W = set_Weights([500000, 250000])
-l7_b = set_Bias([250000])
-l7_output = tf.add(l7_b, tf.matmul(l6_output, l7_W))
-#######################################################################################################################
+l5_W = set_Weights([25 * 25 * 13, 500 * 500])
+l5_b = set_Bias([500 * 500])
+l5_output = tf.nn.relu(tf.matmul(l4_output_flat, l5_W) + l5_b)
 
 # loss function
-cross_entropy = -(tf.reduce_sum(y_ * tf.log(l7_output)))
+cross_entropy = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(l5_output), reduction_indices=[1]))
 
 train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
 
 # Accuracy calculation
-correct_prediction = tf.equal(tf.argmax(l7_output, 1), tf.argmax(y_, 1))
+correct_prediction = tf.equal(l5_output, y_)
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
-
 
 with tf.Session() as sess:
   sess.run(tf.initialize_all_variables()) # Initializing all the network variables
 
-  for i in range(50):
+  for i in range(100):
     batch = data.train.next_batch(50)
 
     if i % 10 == 0:
