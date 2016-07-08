@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+import scipy.misc
 import sys
 import cv2
 
@@ -75,10 +76,13 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 with tf.Session() as sess:
   sess.run(tf.initialize_all_variables()) # Initializing all the network variables
 
-  for i in range(100):
+  for i in range(1000):
     batch = data.train.next_batch(50)
 
-    if i % 10 == 0:
-      print("Accuracy at step %i: %g" % (i, accuracy.eval(feed_dict={x:batch[0], y_:batch[1]})))
-
     train_step.run(feed_dict={x:batch[0], y_:batch[1]})
+
+    if i % 10 == 0:
+      print("Accuracy at step %i: %g" % ((i + 1), accuracy.eval(feed_dict={x:batch[0], y_:batch[1]})))
+
+      for x, j in zip(batch[1], range(len(batch[1]))):
+        scipy.misc.imsave("NetworkOutput/" + str(i + j) + ".jpeg", x.reshape(500, 500))
