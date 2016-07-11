@@ -69,7 +69,7 @@ cross_entropy = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(l5_output), reduction_
 train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
 
 # Accuracy calculation
-correct_prediction = tf.equal(l5_output, y_)
+correct_prediction = tf.reduce_mean(tf.abs(tf.sub(l5_output, y_)))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 with tf.Session() as sess:
@@ -78,7 +78,7 @@ with tf.Session() as sess:
   for i in range(100):
     batch = data.train.next_batch(50)
 
-    if i % 10 == 0:
+    if i % 1 == 0:
       print("Accuracy at step %i: %g" % (i, accuracy.eval(feed_dict={x:batch[0], y_:batch[1]})))
 
     train_step.run(feed_dict={x:batch[0], y_:batch[1]})
