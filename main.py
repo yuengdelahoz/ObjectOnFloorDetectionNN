@@ -66,13 +66,15 @@ l5_W = set_Weights([25 * 25 * 13, 500 * 500])
 l5_b = set_Bias([500 * 500])
 l5_output = tf.nn.relu(tf.matmul(l4_output_flat, l5_W) + l5_b)
 
+# 
+
 # loss function
 cross_entropy = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(l5_output), reduction_indices=[1]))
 
 train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
 
 # Accuracy calculation
-correct_prediction = tf.equal(l5_output, y_)
+correct_prediction = tf.reduce_mean(tf.abs(tf.sub(l5_output, y_)))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 print("Starting training session...")
