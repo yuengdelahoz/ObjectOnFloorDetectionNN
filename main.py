@@ -2,6 +2,9 @@ import tensorflow as tf
 import numpy as np
 import sys
 import cv2
+import functools
+import operator
+import time
 
 from ObjectOnFloorDetectionNN.Dataset import input_data
 
@@ -63,22 +66,48 @@ l5_W = set_Weights([25 * 25 * 13, 500 * 500])
 l5_b = set_Bias([500 * 500])
 l5_output = tf.nn.relu(tf.matmul(l4_output_flat, l5_W) + l5_b)
 
+# 
+
 # loss function
 cross_entropy = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(l5_output), reduction_indices=[1]))
 
 train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
 
 # Accuracy calculation
-correct_prediction = tf.equal(l5_output, y_)
+correct_prediction = tf.reduce_mean(tf.abs(tf.sub(l5_output, y_)))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+print("Starting training session...")
 
 with tf.Session() as sess:
   sess.run(tf.initialize_all_variables()) # Initializing all the network variables
 
-  for i in range(100):
+  lstt = tf.trainable_variables()
+    
+  [print (lt.get_shape()) for lt in lstt]
+
+  acum = 0
+
+  for lt in lstt:
+    ta = lt.get_shape()
+    lstd = ta.as_list()
+    mult = functools.reduce(operator.mul, lstd, 1)
+    acum = acum + mult
+    
+  print("Number of parameters: ", acum)
+  
+  for i in range(1000):
+    print("Iteration " + str(i + 1) + " took: ", end="")
+    start = time.time()
+    
     batch = data.train.next_batch(50)
 
-    if i % 10 == 0:
-      print("Accuracy at step %i: %g" % (i, accuracy.eval(feed_dict={x:batch[0], y_:batch[1]})))
-
     train_step.run(feed_dict={x:batch[0], y_:batch[1]})
+    
+    end = (time.time() - start) /60
+    print(str(end) + " segs")
+
+    if i % 10 == 0:
+      print("Accuracy at step %i: %g" % ((i + 1), accuracy.eval(feed_dict={x:batch[0], y_:batch[1]})))
+      print(str(end) + " segs")
+    
