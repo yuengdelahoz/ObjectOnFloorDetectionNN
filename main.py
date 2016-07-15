@@ -110,4 +110,3 @@ with tf.Session() as sess:
     if i % 10 == 0:
       print("Accuracy at step %i: %g" % ((i + 1), accuracy.eval(feed_dict={x:batch[0], y_:batch[1]})))
       print(str(end) + " segs")
-    
