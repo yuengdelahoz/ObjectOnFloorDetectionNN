@@ -76,7 +76,7 @@ train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
 # Accuracy calculation
 correct_prediction = tf.reduce_mean(tf.abs(tf.sub(l5_output, y_)))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
+saver = tf.train.Saver()
 print("Starting training session...")
 
 with tf.Session() as sess:
@@ -97,17 +97,18 @@ with tf.Session() as sess:
   print("Number of parameters: ", acum)
   
   for i in range(1000):
-    print("Iteration " + str(i + 1) + " took: ", end="")
+    print("Iteration " + str(i) + " took: ", end="")
     start = time.time()
     
     batch = data.train.next_batch(50)
 
+    print(str(end) + " segs")
+
+    if i % 100 == 0:
+      print("Accuracy at step %i: %g" % ((i), accuracy.eval(feed_dict={x:batch[0], y_:batch[1]})))
+      print(str(end) + " segs")
+
+      save_path = saver.save(sess, "/home/harry/Documents/FloorDetectionNN.ckpt", global_step=i)
     train_step.run(feed_dict={x:batch[0], y_:batch[1]})
     
     end = (time.time() - start) /60
-    print(str(end) + " segs")
-
-    if i % 10 == 0:
-      print("Accuracy at step %i: %g" % ((i + 1), accuracy.eval(feed_dict={x:batch[0], y_:batch[1]})))
-      print(str(end) + " segs")
-    
