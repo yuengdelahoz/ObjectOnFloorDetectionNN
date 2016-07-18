@@ -97,10 +97,34 @@ with tf.Session() as sess:
   print("Number of parameters: ", acum)
   
   for i in range(1000):
+
+    if i == 0:
+      lst = []
+
+      W2 = np.zeros([28, 28])
+      W = l5_output.eval(sess)
+
+      for i in range(5):
+        for j in range(28):
+          for k in range(28):
+            W2[j][k] = W[j][k][0][i]
+        max = np.max(W2)
+        min = np.min(W2)
+
+        W2 = (W2-min)/(max-min)
+        W2 = W2 * 255
+        
+        lst.append(W2.copy())
+      [cv2.imwrite('output_' + str(i) + '_before.png', lst[i]) for i in range(len(lst))]
+
     print("Iteration " + str(i) + " took: ", end="")
     start = time.time()
     
     batch = data.train.next_batch(50)
+
+    train_step.run(feed_dict={x:batch[0], y_:batch[1]})
+    
+    end = (time.time() - start) /60
 
     print(str(end) + " segs")
 
@@ -108,7 +132,4 @@ with tf.Session() as sess:
       print("Accuracy at step %i: %g" % ((i), accuracy.eval(feed_dict={x:batch[0], y_:batch[1]})))
       print(str(end) + " segs")
 
-      save_path = saver.save(sess, "/home/harry/Documents/FloorDetectionNN.ckpt", global_step=i)
-    train_step.run(feed_dict={x:batch[0], y_:batch[1]})
-    
-    end = (time.time() - start) /60
+      save_path = saver.save(sess, "/home/a1mb0t/Documents/FloorDetectionNN.ckpt", global_step=i)

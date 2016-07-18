@@ -3,7 +3,7 @@ import cv2
 import os
 
 # full directory to the Images
-directory = "/home/harry/Documents/Test/Images/Resized/"
+directory = "/home/a1mb0t/Documents/Images/Originals/Resized/"
 # directory = "/home/harry/Documents/Test_Sets/"
 
 # List of Images and Labels sorted.
