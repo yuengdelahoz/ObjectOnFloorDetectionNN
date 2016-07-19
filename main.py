@@ -66,7 +66,8 @@ l5_W = set_Weights([25 * 25 * 13, 500 * 500])
 l5_b = set_Bias([500 * 500])
 l5_output = tf.nn.relu(tf.matmul(l4_output_flat, l5_W) + l5_b)
 
-# 
+keep_prob = tf.placeholder(tf.float32)
+h_fc1_drop = tf.nn.dropout(l5_output, keep_prob)
 
 # loss function
 cross_entropy = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(l5_output), reduction_indices=[1]))
@@ -80,7 +81,7 @@ saver = tf.train.Saver()
 print("Starting training session...")
 
 with tf.Session() as sess:
-  sess.run(tf.initialize_all_variables()) # Initializing all the network variables
+  sess.run(tf.initialize_all_variables()) # Initializing all network variables
 
   lstt = tf.trainable_variables()
     
@@ -96,26 +97,7 @@ with tf.Session() as sess:
     
   print("Number of parameters: ", acum)
   
-  for i in range(1000):
-
-    if i == 0:
-      lst = []
-
-      W2 = np.zeros([28, 28])
-      W = l5_output.eval(sess)
-
-      for i in range(5):
-        for j in range(28):
-          for k in range(28):
-            W2[j][k] = W[j][k][0][i]
-        max = np.max(W2)
-        min = np.min(W2)
-
-        W2 = (W2-min)/(max-min)
-        W2 = W2 * 255
-        
-        lst.append(W2.copy())
-      [cv2.imwrite('output_' + str(i) + '_before.png', lst[i]) for i in range(len(lst))]
+  for i in range(100):
 
     print("Iteration " + str(i) + " took: ", end="")
     start = time.time()
@@ -128,8 +110,25 @@ with tf.Session() as sess:
 
     print(str(end) + " segs")
 
-    if i % 100 == 0:
+    if i == 0:
+      t = l5_output.eval(sess)
+
+      print(type(t))
+
+      # l5_output_npArray = tf.contrib.util.make_ndarray(tf.reshape(l5_output.eval(sess), [500, 500]))
+
+      # print("Shape of l5_output_npArray " + str(l5_output_npArray.shape))
+
+      # b = cv2.imwrite('test.jpeg', l5_output_npArray)
+
+      # print("image saved?: " + str(b))
+    elif i == 99:
+      t = l5_output.eval(sess)
+
+      print(t.get_shape())
+
+    if i % 10 == 0:
       print("Accuracy at step %i: %g" % ((i), accuracy.eval(feed_dict={x:batch[0], y_:batch[1]})))
       print(str(end) + " segs")
 
-      save_path = saver.save(sess, "/home/a1mb0t/Documents/FloorDetectionNN.ckpt", global_step=i)
+      # save_path = saver.save(sess, "/home/a1mb0t/Documents/FloorDetectionNN.ckpt", global_step=i)
