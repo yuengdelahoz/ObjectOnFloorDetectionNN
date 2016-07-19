@@ -99,23 +99,17 @@ with tf.Session() as sess:
   for i in range(1000):
 
     if i == 0:
-      lst = []
+      # t = l5_output.eval(sess)
 
-      W2 = np.zeros([28, 28])
-      W = l5_output.eval(sess)
+      # print(t.get_shape())
 
-      for i in range(5):
-        for j in range(28):
-          for k in range(28):
-            W2[j][k] = W[j][k][0][i]
-        max = np.max(W2)
-        min = np.min(W2)
+      l5_output_npArray = tf.contrib.util.make_ndarray(tf.reshape(, [500, 500]))
 
-        W2 = (W2-min)/(max-min)
-        W2 = W2 * 255
-        
-        lst.append(W2.copy())
-      [cv2.imwrite('output_' + str(i) + '_before.png', lst[i]) for i in range(len(lst))]
+      print("Shape of l5_output_npArray " + str(l5_output_npArray.shape))
+
+      b = cv2.imwrite('test.jpeg', l5_output_npArray)
+
+      print("image saved?: " + str(b))
 
     print("Iteration " + str(i) + " took: ", end="")
     start = time.time()
