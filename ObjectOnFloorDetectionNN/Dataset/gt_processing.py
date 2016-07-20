@@ -6,7 +6,11 @@ import os
 directory = "/home/harry/Documents/Test/Images/Resized/"
 
 # String that contains the saving file path
+<<<<<<< HEAD
 savingDirectory = "/home/harry/Documents/"
+=======
+savingDirectory = "/media/a1mb0t/240925af-098c-49f8-b6ce-6ade5a480505/"
+>>>>>>> 34b0f5f668cad85c4cf9f6b824ab87217d2c6167
 # directory = "/home/harry/Documents/Test_Sets/"
 
 # List of Images and Labels sorted.
@@ -43,7 +47,7 @@ if len(images) == len(labels): # Validation of the size of the images and labels
 
           # saving the arrays of the Training sets as .npy to the file system
           print("\n\tSaving the npy files of the Training sets...\n")
-          
+          print (savingDirectory)
           np.save(savingDirectory + 'npyTrainingImages', npyTrainingImages)
           np.save(savingDirectory + 'npyTrainingLabels', npyTrainingLabels)
 
