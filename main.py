@@ -60,17 +60,17 @@ l4_output_flat = tf.reshape(l4_output, [-1, 25 * 25 * 13])
 #######################################################################################################################
 
 #################################################FULLY CONNECTED LAYERS################################################
+keep_prob = tf.placeholder(tf.float32)
+l4_output_drop = tf.nn.dropout(l4_output_flat, keep_prob)
 
 # Preparing the weights and biases of the second fully connected layer
 l5_W = set_Weights([25 * 25 * 13, 500 * 500])
 l5_b = set_Bias([500 * 500])
-l5_output = tf.nn.relu(tf.matmul(l4_output_flat, l5_W) + l5_b)
+l5_output = tf.nn.relu(tf.matmul(l4_output_drop, l5_W) + l5_b)
 
-keep_prob = tf.placeholder(tf.float32)
-h_fc1_drop = tf.nn.dropout(l5_output, keep_prob)
 
 # loss function
-cross_entropy = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(l5_output), reduction_indices=[1]))
+cross_entropy = tf.reduce_reduce(-mean.tf_sum(y_ * tf.log(l5_output), reduction_indices=[1]))
 
 train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
 
@@ -104,16 +104,22 @@ with tf.Session() as sess:
     
     batch = data.train.next_batch(50)
 
-    train_step.run(feed_dict={x:batch[0], y_:batch[1]})
+
     
     end = (time.time() - start) /60
 
-    print(str(end) + " segs")
+    print(str(end) + " mins")
 
     if i == 0:
-      t = l5_output.eval(sess)
+      t = l5_output.eval(feed_dict={x:batch[0], y_:batch[1], keep_prob:1})
+      imgoutput = t[0].reshape((500,500))
+      imginput = batch[0][0]
+      imglabel = batch[1][0].reshape((500,500))
+      cv2.imwrite('imgoutput.jpg', imgoutput)
+      cv2.imwrite('imginput.jpg', imginput)
+      cv2.imwrite('imglabel.jpg', imglabel)
 
-      print(type(t))
+      print(t.shape)
 
       # l5_output_npArray = tf.contrib.util.make_ndarray(tf.reshape(l5_output.eval(sess), [500, 500]))
 
@@ -126,9 +132,10 @@ with tf.Session() as sess:
       t = l5_output.eval(sess)
 
       print(t.get_shape())
+    train_step.run(feed_dict={x:batch[0], y_:batch[1], keep_prob:0.5})
 
     if i % 10 == 0:
-      print("Accuracy at step %i: %g" % ((i), accuracy.eval(feed_dict={x:batch[0], y_:batch[1]})))
+      print("Accuracy at step %i: %g" % ((i), accuracy.eval(feed_dict={x:batch[0], y_:batch[1], keep_prob:1.0})))
       print(str(end) + " segs")
 
       # save_path = saver.save(sess, "/home/a1mb0t/Documents/FloorDetectionNN.ckpt", global_step=i)

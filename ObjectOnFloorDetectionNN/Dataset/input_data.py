@@ -74,11 +74,11 @@ def read_dir(directory):
 
 def readDataSets():
   # get path of current file (input_data.py)
-  training, testing = ("/home/a1mb0t/Documents/Images/Originals/Resized/"), ("/home/a1mb0t/Documents/Test_Sets")
+  training, testing = ("/media/a1mb0t/240925af-098c-49f8-b6ce-6ade5a480505"), ("/media/a1mb0t/240925af-098c-49f8-b6ce-6ade5a480505")
 
   # Loading the npy array of images and labels to the array variables
-  testImages, testLabels = np.load(testing + "/npyImages.npy"), np.load(testing + "/npyLabels.npy")
-  trainImages, trainLabels = np.load(training + "/npyImages.npy"), np.load(training + "/npyLabels.npy")
+  testImages, testLabels = np.load(testing + "/npyTestingImages.npy"), np.load(testing + "/npyTestingLabels.npy")
+  trainImages, trainLabels = np.load(training + "/npyTrainingImages.npy"), np.load(training + "/npyTrainingLabels.npy")
 
   #Creating two datasets objects. One for training and another for testing.
   test = Dataset([testImages, testLabels])
