@@ -8,12 +8,11 @@ import collections
 Datasets = collections.namedtuple('Datasets', ['train', 'test'])
 
 class Dataset:
-  def __init__(self, images, npyFiles_path="../Dataset/npyFiles/"):
+  def __init__(self, image):
   	self._images = images[0]
   	self._labels = images[1]
   	self.samples = self._images.shape[0]
   	self.epoch_index = 0
-    self._npyFiles_path = npyFiles_path
 
   def next_batch(self, batch_size):
   	if batch_size > self.samples:
@@ -73,9 +72,9 @@ def read_dir(directory):
   
   return data
 
-def readDataSets():
+def readDataSets(npyFiles_path="/home/harry/Documents/Gits/YuengGit/ObjectOnFloorDetectionNN/Dataset/npyFiles"):
   # Loading the npy array of images and labels to the array variables
-  trainImages, trainLabels = np.load(self._npyFiles_path + "/npyTrainingImages.npy"), np.load(self._npyFiles_path + "/npyTrainingLabels.npy")
-  testImages, testLabels = np.load(self._npyFiles_path + "/npyTestingImages.npy"), np.load(self._npyFiles_path + "/npyTestingLabels.npy")
+  trainImages, trainLabels = np.load(npyFiles_path + "/npyTrainingImages.npy"), np.load(npyFiles_path + "/npyTrainingLabels.npy")
+  testImages, testLabels = np.load(npyFiles_path + "/npyTestingImages.npy"), np.load(npyFiles_path + "/npyTestingLabels.npy")
 
   return Datasets(train=Dataset([trainImages, trainLabels]), test=Dataset([testImages, testLabels]))
