@@ -13,11 +13,11 @@ from ObjectOnFloorDetectionNN.input_data import input_data
 tf.reset_default_graph()
 
 # Getting the data sets
-data = input_data.readDataSets()
+data = input_data.readDataSets(npyFiles_path="/media/a1mb0t/240925af-098c-49f8-b6ce-6ade5a480505")
 # ######################################################################################################################
 # ################Lambda functions that initialize the Wights and Biases of the Neural Network##########################
-set_Weights = lambda shape, stddev = 0.1: tf.Variable(tf.truncated_normal(shape, stddev = stddev))
-set_Bias = lambda shape: tf.Variable(tf.constant(0.1, shape=shape))
+set_Weights = lambda shape, name, stddev = 0.1: tf.Variable(tf.truncated_normal(shape, stddev = stddev), name=name)
+set_Bias = lambda shape, name: tf.Variable(tf.constant(0.1, shape=shape), name=name)
 
 conv2d = lambda x, W, s: tf.nn.conv2d(x, W, strides=[1, s, s, 1], padding='SAME')
 
@@ -34,27 +34,27 @@ y_ = tf.placeholder(tf.float32, shape=[None, 250000])
 
 # Preparing the Weights for filters of the first convolutional layer
 # [filter_height, filter_width, input_image_channels, number_of_filters]
-l1_W = set_Weights([28, 28, 3, 5])
-l1_b = set_Bias([5]) # Setting the filters Bias
+l1_W = set_Weights([28, 28, 3, 5], "l1_W")
+l1_b = set_Bias([5], "l1_b") # Setting the filters Bias
 l1_output = tf.nn.relu(conv2d(x, l1_W, 1) + l1_b) # [None, 500/1, 500/1, 5] => output_size = [None, 500, 500, 5]
 
 # Preparing the weights and filters of the second convolutional layer
 # [filter_height, filter_width, input_past_layer_channels, number_of_filters_of_this_layer]
-l2_W = set_Weights([21, 21, 5, 9])
-l2_b = set_Bias([9])
+l2_W = set_Weights([21, 21, 5, 9], "l2_W")
+l2_b = set_Bias([9], "l2_b")
 l2_output = tf.nn.relu(conv2d(l1_output, l2_W, 2) + l2_b)  # [None, 500/2, 500/2, 9] => 
                                                                 # output_size = [None, 250, 250, 9]
 
 # Preparing the weights and filters of the third convolutional layer
 # [filter_height, filter_width, input_past_layer_channels, number_of_filters_of_this_layer]
-l3_W = set_Weights([14, 14, 9, 11])
-l3_b = set_Bias([11])
+l3_W = set_Weights([14, 14, 9, 11], "l3_W")
+l3_b = set_Bias([11], "l3_b")
 l3_output = tf.nn.relu(conv2d(l2_output, l3_W, 5) + l3_b) # [None, 250/5, 250/5, 11] 
 #                                                                 => output_layer = [None, 50, 50, 11]
 
 # Preparing fourth convolutional layer
-l4_W = set_Weights([7, 7, 11, 13])
-l4_b = set_Bias([13])
+l4_W = set_Weights([7, 7, 11, 13], "l4_W")
+l4_b = set_Bias([13],  "l4_b")
 l4_output = tf.nn.relu(conv2d(l3_output, l4_W, 2) + l4_b)  # [None, 50/2, 50/2, 13] => [None,  25, 25, 13]
 
 l4_output_flat = tf.reshape(l4_output, [-1, 25 * 25 * 13])
@@ -65,13 +65,13 @@ keep_prob = tf.placeholder(tf.float32)
 l4_output_drop = tf.nn.dropout(l4_output_flat, keep_prob)
 
 # Preparing the weights and biases of the second fully connected layer
-l5_W = set_Weights([25 * 25 * 13, 500 * 500])
-l5_b = set_Bias([500 * 500])
+l5_W = set_Weights([25 * 25 * 13, 500 * 500], "l5_W")
+l5_b = set_Bias([500 * 500], "l5_b")
 l5_output = tf.nn.relu(tf.matmul(l4_output_drop, l5_W) + l5_b)
 #######################################################################################################################
 
 # loss function
-cross_entropy = tf.reduce_reduce(-mean.tf_sum(y_ * tf.log(l5_output), reduction_indices=[1]))
+cross_entropy = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(l5_output), reduction_indices=[1]))
 
 # Optimizer of the network
 train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
@@ -83,7 +83,7 @@ accuracy = tf.reduce_mean(tf.cast(tf.reduce_mean(tf.abs(tf.sub(l5_output, y_))),
 saver = tf.train.Saver()
 
 # List of files of the network variables for the past training sessions
-outputFiles = sorted(os.listdir("ObjectOnFloorDetectionNN/NetworkValues/"))
+outputFiles = sorted(os.listdir("ObjectOnFloorDetectionNN/Dataset/NetworkValues/"))
 
 print("Starting training session...")
 
@@ -91,9 +91,9 @@ with tf.Session() as sess:
   # Calculating the new step for saving the new network files
   step = len(outputFiles) - 1
 
-  if len(outputFiles) == 0: # verifying if there are old files of the network variables
+  if len(outputFiles) > 0: # verifying if there are old files of the network variables
     # Restoring the values of the variables of the last training session
-    saver.restore(sess, "ObjectOnFloorDetectionNN/NetworkValues/" + str(outputFiles[-1]))
+    saver.restore(sess, "/media/a1mb0t/240925af-098c-49f8-b6ce-6ade5a480505/NetworkValues" + str(outputFiles[-1]))
   else:
     sess.run(tf.initialize_all_variables()) # Initializing all network variables if no network files
   
@@ -125,6 +125,7 @@ with tf.Session() as sess:
       cv2.imwrite('img_Ouput.jpeg', img_Ouput)
       cv2.imwrite('img_Input.jpeg', img_Input)
       cv2.imwrite('img_Label.jpeg', img_Label)
+      print("\n\tImages saved!!")
 
     elif i == 999:
       print("\n\tEvaluating the output of the network...\n")
@@ -139,16 +140,22 @@ with tf.Session() as sess:
       cv2.imwrite('img_Ouput.jpeg', img_Ouput)
       cv2.imwrite('img_Input.jpeg', img_Input)
       cv2.imwrite('img_Label.jpeg', img_Label)
+      print("\n\tImages saved!!")
 
     start = time.time()
 
     train_step.run(feed_dict={x:batch[0], y_:batch[1], keep_prob:0.5})
 
-    print("\nIteration " + str(i) + " took: %.2f mins" % ((time.time() - start) / 60))
+    print("\nTraining Step " + str(i) + " took: %.2f mins" % ((time.time() - start) / 60))
 
     if i % 100 == 0:
-      print("Accuracy at step %i: %.2f%" % ((i), accuracy.eval(feed_dict={x:batch[0], y_:batch[1], keep_prob:1.0})))
+      print("Accuracy at training step %i: %.2f%%" % ((i), accuracy.eval(feed_dict={x:batch[0], y_:batch[1], keep_prob:1.0})))
       
-      save_path = saver.save(sess, "ObjectOnFloorDetectionNN/NetworkValues/networkValues.ckpt", global_step=(step + i))
+      # save_path = saver.save(sess, "/media/a1mb0t/240925af-098c-49f8-b6ce-6ade5a480505/NetworkValuesnetworkValues.ckpt", global_step=(step + i))
 
-      print("File saved to " + str(save_path))
+      # print("File saved to " + str(save_path))
+
+  print("\n\n\tStarting testing of the net...\n\n")
+  batch = data.test.next_batch(50)
+
+  print("Accuracy with test set: %.2f%%" % (accuracy.eval(feed_dict={x:batch[0], y_:batch[1], keep_prob:1.0})))
