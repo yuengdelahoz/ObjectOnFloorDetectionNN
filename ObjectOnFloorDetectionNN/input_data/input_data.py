@@ -8,11 +8,12 @@ import collections
 Datasets = collections.namedtuple('Datasets', ['train', 'test'])
 
 class Dataset:
-  def __init__(self,images):
+  def __init__(self, images, npyFiles_path="../Dataset/npyFiles/"):
   	self._images = images[0]
   	self._labels = images[1]
   	self.samples = self._images.shape[0]
   	self.epoch_index = 0
+    self._npyFiles_path = npyFiles_path
 
   def next_batch(self, batch_size):
   	if batch_size > self.samples:
@@ -73,15 +74,8 @@ def read_dir(directory):
   return data
 
 def readDataSets():
-  # get path of current file (input_data.py)
-  training, testing = ("/media/a1mb0t/240925af-098c-49f8-b6ce-6ade5a480505"), ("/media/a1mb0t/240925af-098c-49f8-b6ce-6ade5a480505")
-
   # Loading the npy array of images and labels to the array variables
-  testImages, testLabels = np.load(testing + "/npyTestingImages.npy"), np.load(testing + "/npyTestingLabels.npy")
-  trainImages, trainLabels = np.load(training + "/npyTrainingImages.npy"), np.load(training + "/npyTrainingLabels.npy")
+  trainImages, trainLabels = np.load(self._npyFiles_path + "/npyTrainingImages.npy"), np.load(self._npyFiles_path + "/npyTrainingLabels.npy")
+  testImages, testLabels = np.load(self._npyFiles_path + "/npyTestingImages.npy"), np.load(self._npyFiles_path + "/npyTestingLabels.npy")
 
-  #Creating two datasets objects. One for training and another for testing.
-  test = Dataset([testImages, testLabels])
-  train = Dataset([trainImages, trainLabels])
-
-  return Datasets(train=train, test=test)
+  return Datasets(train=Dataset([trainImages, trainLabels]), test=Dataset([testImages, testLabels]))

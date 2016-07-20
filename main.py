@@ -5,8 +5,9 @@ import cv2
 import functools
 import operator
 import time
+import os
 
-from ObjectOnFloorDetectionNN.Dataset import input_data
+from ObjectOnFloorDetectionNN.input_data import input_data
 
 # Reseting the graph
 tf.reset_default_graph()
@@ -67,92 +68,87 @@ l4_output_drop = tf.nn.dropout(l4_output_flat, keep_prob)
 l5_W = set_Weights([25 * 25 * 13, 500 * 500])
 l5_b = set_Bias([500 * 500])
 l5_output = tf.nn.relu(tf.matmul(l4_output_drop, l5_W) + l5_b)
-
+#######################################################################################################################
 
 # loss function
 cross_entropy = tf.reduce_reduce(-mean.tf_sum(y_ * tf.log(l5_output), reduction_indices=[1]))
 
+# Optimizer of the network
 train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
 
 # Accuracy calculation
-correct_prediction = tf.reduce_mean(tf.abs(tf.sub(l5_output, y_)))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+accuracy = tf.reduce_mean(tf.cast(tf.reduce_mean(tf.abs(tf.sub(l5_output, y_))), tf.float32))
+
+# Variable utilized to save the network values into a file and restore the values of that file for the training session
 saver = tf.train.Saver()
+
+# List of files of the network variables for the past training sessions
+outputFiles = sorted(os.listdir("ObjectOnFloorDetectionNN/NetworkValues/"))
+
 print("Starting training session...")
 
 with tf.Session() as sess:
-  sess.run(tf.initialize_all_variables()) # Initializing all network variables
+  # Calculating the new step for saving the new network files
+  step = len(outputFiles) - 1
 
-  lstt = tf.trainable_variables()
-    
-  [print (lt.get_shape()) for lt in lstt]
-
+  if len(outputFiles) == 0: # verifying if there are old files of the network variables
+    # Restoring the values of the variables of the last training session
+    saver.restore(sess, "ObjectOnFloorDetectionNN/NetworkValues/" + str(outputFiles[-1]))
+  else:
+    sess.run(tf.initialize_all_variables()) # Initializing all network variables if no network files
+  
+  # Variable for calculate the total number of network parameters
   acum = 0
 
-  for lt in lstt:
-    ta = lt.get_shape()
-    lstd = ta.as_list()
-    mult = functools.reduce(operator.mul, lstd, 1)
+  print("Calculating the number of network's parameters...")
+  for lt in tf.trainable_variables():
+    mult = functools.reduce(operator.mul, lt.get_shape().as_list(), 1)
     acum = acum + mult
     
-  print("Number of parameters: ", acum)
-  
-<<<<<<< HEAD
+  print("\n\tNumber of parameters: %g" % acum)
+
+  print("\n\nStarting the training loop...")
   for i in range(1000):
-
-    if i == 0:
-      # t = l5_output.eval(sess)
-
-      # print(t.get_shape())
-
-      l5_output_npArray = tf.contrib.util.make_ndarray(tf.reshape(, [500, 500]))
-
-      print("Shape of l5_output_npArray " + str(l5_output_npArray.shape))
-
-      b = cv2.imwrite('test.jpeg', l5_output_npArray)
-
-      print("image saved?: " + str(b))
-=======
-  for i in range(100):
->>>>>>> bae57f454a83b0a9ea7c7d1b21dfa2818f3278e3
-
-    print("Iteration " + str(i) + " took: ", end="")
-    start = time.time()
-    
+    print("\nCurrent iteration " + str(i) + "\n")
     batch = data.train.next_batch(50)
 
-
-    
-    end = (time.time() - start) /60
-
-    print(str(end) + " mins")
-
     if i == 0:
+      print("\n\tEvaluating the output of the network...\n")
       t = l5_output.eval(feed_dict={x:batch[0], y_:batch[1], keep_prob:1})
-      imgoutput = t[0].reshape((500,500))
-      imginput = batch[0][0]
-      imglabel = batch[1][0].reshape((500,500))
-      cv2.imwrite('imgoutput.jpg', imgoutput)
-      cv2.imwrite('imginput.jpg', imginput)
-      cv2.imwrite('imglabel.jpg', imglabel)
 
-      print(t.shape)
+      print("Resizing the images...")
+      img_Ouput = t[0].reshape((500,500))
+      img_Input = batch[0][0]
+      img_Label = batch[1][0].reshape((500,500))
 
-      # l5_output_npArray = tf.contrib.util.make_ndarray(tf.reshape(l5_output.eval(sess), [500, 500]))
+      print("\n\tSaving the output of images...\n")
+      cv2.imwrite('img_Ouput.jpeg', img_Ouput)
+      cv2.imwrite('img_Input.jpeg', img_Input)
+      cv2.imwrite('img_Label.jpeg', img_Label)
 
-      # print("Shape of l5_output_npArray " + str(l5_output_npArray.shape))
+    elif i == 999:
+      print("\n\tEvaluating the output of the network...\n")
+      t = l5_output.eval(feed_dict={x:batch[0], y_:batch[1], keep_prob:1})
 
-      # b = cv2.imwrite('test.jpeg', l5_output_npArray)
+      print("Resizing the images...")
+      img_Ouput = t[0].reshape((500,500))
+      img_Input = batch[0][0]
+      img_Label = batch[1][0].reshape((500,500))
 
-      # print("image saved?: " + str(b))
-    elif i == 99:
-      t = l5_output.eval(sess)
+      print("\n\tSaving the output of images...\n")
+      cv2.imwrite('img_Ouput.jpeg', img_Ouput)
+      cv2.imwrite('img_Input.jpeg', img_Input)
+      cv2.imwrite('img_Label.jpeg', img_Label)
 
-      print(t.get_shape())
+    start = time.time()
+
     train_step.run(feed_dict={x:batch[0], y_:batch[1], keep_prob:0.5})
 
-    if i % 10 == 0:
-      print("Accuracy at step %i: %g" % ((i), accuracy.eval(feed_dict={x:batch[0], y_:batch[1], keep_prob:1.0})))
-      print(str(end) + " segs")
+    print("\nIteration " + str(i) + " took: %.2f mins" % ((time.time() - start) / 60))
 
-      # save_path = saver.save(sess, "/home/a1mb0t/Documents/FloorDetectionNN.ckpt", global_step=i)
+    if i % 100 == 0:
+      print("Accuracy at step %i: %.2f%" % ((i), accuracy.eval(feed_dict={x:batch[0], y_:batch[1], keep_prob:1.0})))
+      
+      save_path = saver.save(sess, "ObjectOnFloorDetectionNN/NetworkValues/networkValues.ckpt", global_step=(step + i))
+
+      print("File saved to " + str(save_path))
