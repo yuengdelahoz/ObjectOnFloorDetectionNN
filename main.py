@@ -9,11 +9,13 @@ import os
 
 from ObjectOnFloorDetectionNN.input_data import input_data
 
+networkSavingFilesPath = "/home/harry/Documents/Gits/YuengGit/ObjectOnFloorDetectionNN/Dataset/NetworkValues"
+indexList = list()
 # Reseting the graph
 tf.reset_default_graph()
 
 # Getting the data sets
-data = input_data.readDataSets(npyFiles_path="/media/a1mb0t/240925af-098c-49f8-b6ce-6ade5a480505")
+data = input_data.readDataSets()
 # ######################################################################################################################
 # ################Lambda functions that initialize the Wights and Biases of the Neural Network##########################
 set_Weights = lambda shape, name, stddev = 0.1: tf.Variable(tf.truncated_normal(shape, stddev = stddev), name=name)
@@ -28,7 +30,7 @@ max_pool = lambda x, k: tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 
 x = tf.placeholder(tf.float32, shape=[50, 500, 500, 3])
 
 # Making the output place holder of the y = x * W + b function
-y_ = tf.placeholder(tf.float32, shape=[None, 250000])
+y_ = tf.placeholder(tf.float32, shape=[None, 1000])
 
 ################################################CONVOLUTIONAL LAYERS####################################################
 
@@ -55,9 +57,9 @@ l3_output = tf.nn.relu(conv2d(l2_output, l3_W, 5) + l3_b) # [None, 250/5, 250/5,
 # Preparing fourth convolutional layer
 l4_W = set_Weights([7, 7, 11, 13], "l4_W")
 l4_b = set_Bias([13],  "l4_b")
-l4_output = tf.nn.relu(conv2d(l3_output, l4_W, 2) + l4_b)  # [None, 50/2, 50/2, 13] => [None,  25, 25, 13]
+l4_output = tf.nn.relu(conv2d(l3_output, l4_W, 5) + l4_b)  # [None, 50/5, 50/5, 13] => [None,  10, 10, 13]
 
-l4_output_flat = tf.reshape(l4_output, [-1, 25 * 25 * 13])
+l4_output_flat = tf.reshape(l4_output, [-1, 10 * 10 * 13])
 #######################################################################################################################
 
 #################################################FULLY CONNECTED LAYERS################################################
@@ -65,8 +67,8 @@ keep_prob = tf.placeholder(tf.float32)
 l4_output_drop = tf.nn.dropout(l4_output_flat, keep_prob)
 
 # Preparing the weights and biases of the second fully connected layer
-l5_W = set_Weights([25 * 25 * 13, 500 * 500], "l5_W")
-l5_b = set_Bias([500 * 500], "l5_b")
+l5_W = set_Weights([10 * 10 * 13, 1000], "l5_W")
+l5_b = set_Bias([1000], "l5_b")
 l5_output = tf.nn.relu(tf.matmul(l4_output_drop, l5_W) + l5_b)
 #######################################################################################################################
 
@@ -77,23 +79,26 @@ cross_entropy = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(l5_output), reduction_
 train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
 
 # Accuracy calculation
-accuracy = tf.reduce_mean(tf.cast(tf.reduce_mean(tf.abs(tf.sub(l5_output, y_))), tf.float32))
+accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1)), tf.float32))
 
 # Variable utilized to save the network values into a file and restore the values of that file for the training session
 saver = tf.train.Saver()
 
 # List of files of the network variables for the past training sessions
-outputFiles = sorted(os.listdir("ObjectOnFloorDetectionNN/Dataset/NetworkValues/"))
+outputFiles = sorted(os.listdir(networkSavingFilesPath))
 
 print("Starting training session...")
 
 with tf.Session() as sess:
+
+  sess.run(tf.initialize_all_variables())
+
   # Calculating the new step for saving the new network files
   step = len(outputFiles) - 1
 
   if len(outputFiles) > 0: # verifying if there are old files of the network variables
     # Restoring the values of the variables of the last training session
-    saver.restore(sess, "/media/a1mb0t/240925af-098c-49f8-b6ce-6ade5a480505/NetworkValues" + str(outputFiles[-1]))
+    saver.restore(sess, networkSavingFilesPath + str(outputFiles[-1]))
   else:
     sess.run(tf.initialize_all_variables()) # Initializing all network variables if no network files
   
@@ -108,39 +113,9 @@ with tf.Session() as sess:
   print("\n\tNumber of parameters: %g" % acum)
 
   print("\n\nStarting the training loop...")
-  for i in range(1000):
+  for i in range(500):
     print("\nCurrent iteration " + str(i) + "\n")
     batch = data.train.next_batch(50)
-
-    if i == 0:
-      print("\n\tEvaluating the output of the network...\n")
-      t = l5_output.eval(feed_dict={x:batch[0], y_:batch[1], keep_prob:1})
-
-      print("Resizing the images...")
-      img_Ouput = t[0].reshape((500,500))
-      img_Input = batch[0][0]
-      img_Label = batch[1][0].reshape((500,500))
-
-      print("\n\tSaving the output of images...\n")
-      cv2.imwrite('img_Ouput.jpeg', img_Ouput)
-      cv2.imwrite('img_Input.jpeg', img_Input)
-      cv2.imwrite('img_Label.jpeg', img_Label)
-      print("\n\tImages saved!!")
-
-    elif i == 999:
-      print("\n\tEvaluating the output of the network...\n")
-      t = l5_output.eval(feed_dict={x:batch[0], y_:batch[1], keep_prob:1})
-
-      print("Resizing the images...")
-      img_Ouput = t[0].reshape((500,500))
-      img_Input = batch[0][0]
-      img_Label = batch[1][0].reshape((500,500))
-
-      print("\n\tSaving the output of images...\n")
-      cv2.imwrite('img_Ouput.jpeg', img_Ouput)
-      cv2.imwrite('img_Input.jpeg', img_Input)
-      cv2.imwrite('img_Label.jpeg', img_Label)
-      print("\n\tImages saved!!")
 
     start = time.time()
 
@@ -148,14 +123,48 @@ with tf.Session() as sess:
 
     print("\nTraining Step " + str(i) + " took: %.2f mins" % ((time.time() - start) / 60))
 
+    save_path = saver.save(sess, networkSavingFilesPath + "/NetworkValuesnetworkValues.ckpt", global_step=(step + i))
+
+    print("File saved to " + str(save_path))
     if i % 100 == 0:
+      t = l5_output.eval(feed_dict={x:batch[0], y_:batch[1], keep_prob:1})
+      save_Output(t, i)
+      save_SuperImage(batch[1])
+      blend_Saver(x, i, t)
+
       print("Accuracy at training step %i: %.2f%%" % ((i), accuracy.eval(feed_dict={x:batch[0], y_:batch[1], keep_prob:1.0})))
       
-      # save_path = saver.save(sess, "/media/a1mb0t/240925af-098c-49f8-b6ce-6ade5a480505/NetworkValuesnetworkValues.ckpt", global_step=(step + i))
+      save_path = saver.save(sess, "ObjectOnFloorDetectionNN/Dataset/NetworkValues/NetworkValuesnetworkValues.ckpt", global_step=(step + i))
 
-      # print("File saved to " + str(save_path))
+      print("File saved to " + str(save_path))
 
   print("\n\n\tStarting testing of the net...\n\n")
   batch = data.test.next_batch(50)
 
   print("Accuracy with test set: %.2f%%" % (accuracy.eval(feed_dict={x:batch[0], y_:batch[1], keep_prob:1.0})))
+
+get_Indexes = lambda output: [indexList.append(i) for i in range(len(output)) if l[i] == 1]
+
+save_Output = lambda output, i: np.save(networkSavingFilesPath + "/output_iter_" + str(i), np.asarray(output))
+
+save_SuperImage = lambda SuperImage, i: np.save(networkSavingFilesPath + "/superImage_iter_" + str(i), np.asarray(SuperImage))
+
+def blend_Saver(inputBatch, _iter, output):
+  print("\n\tGetting indexes...")
+  get_Indexes(output)
+  print("\n\tIndexes done!")
+  for (img, k) in zip(inputBatch, range(len(inputBatch))):
+    print("\n\tSaving input image...")
+    cv2.imwrite(networkSavingFilesPath + "input_iter_" + str(_iter) + "_" + str(k) + ".jpeg", img)
+    print("\n\tInput image saved!!")
+    for x in range(img.shape[0]):
+      for y in range(img.shape[1]):
+        index = int(y // (img.shape[0] // 10)) + (x // (img.shape[1] // 100))
+
+        if index in indexList:
+          img[x, y, 0] = img[x, y, 0] * 0.7 + 255 * 0.3
+    print("\n\tSaving out image...")
+    cv2.imwrite(networkSavingFilesPath + "/result_iter_" + str(_iter) + "_" + str(k) +".jpeg", img)
+    print("\n\tInput out saved!!")
+
+    indexList = list()
