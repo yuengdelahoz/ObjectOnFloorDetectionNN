@@ -17,7 +17,6 @@ class Network:
 		# Read Dataset
 		self.dataset = None
 		self.name = None
-	
 	def initialize(self,topology):
 		self.x = tf.placeholder(tf.float32, shape =[None,240,240,3],name='input_images')
 		self.y = tf.placeholder(tf.float32, shape = [None,900],name='labels')
@@ -134,7 +133,6 @@ class Network:
 		self.layers.update({'L8':LFC.__dict__})
 		self.layers.update({'L_out':L_out.__dict__})
 
-
 	def train(self,iterations=100000,learning_rate = 1e-04):
 		# reading dataset
 		if self.dataset is None:
@@ -243,8 +241,8 @@ class Network:
 			print("Model restored.")
 			# Evaluating testing set
 			metrics = []
-			for  i in range (self.dataset.testing.num_of_images//500):
-				batch = self.dataset.testing.next_batch(500)
+			for  i in range (self.dataset.testing.num_of_images//50):
+				batch = self.dataset.testing.next_batch(50)
 				testImages = np.array([(img-128)/128 for img in batch[0]])
 				testLabels = [lbl for lbl in batch[1]]
 				results = np.round(sess.run(output,feed_dict={x:testImages,y: testLabels,keep_prob:1.0}))
@@ -272,8 +270,10 @@ class Network:
 		if not utils.is_model_stored(topology):
 			print("No model stored to be restored.")
 			return
-
-		tf.reset_default_graph()
+		try:
+			tf.reset_default_graph()
+		except:
+			pass
 		if g is None:
 			g = tf.get_default_graph()
 

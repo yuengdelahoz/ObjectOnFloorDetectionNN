@@ -9,6 +9,7 @@ import gzip
 import urllib.request
 import requests
 import pickle
+import subprocess
 
 Datasets = collections.namedtuple('Datasets', ['training', 'testing','validation'])
 
@@ -51,7 +52,6 @@ class Dataset():
 class DataHandler:
 	def __init__(self):
 		self.path = os.path.dirname(os.path.relpath(__file__))
-		self.DATA_SIZE = 4692378290
 
 	def build_datasets(self):
 		images_path = self.path + '/Images'
@@ -117,48 +117,21 @@ class DataHandler:
 				except zipfile.error as e:
 					return False
 			return True
-
-	def __get_confirm_token(self,response):
-		for key, value in response.cookies.items():
-			if key.startswith('download_warning'):
-				return value
-		return None
-
-	def __save_response_content(self,response, destination):
-		CHUNK_SIZE = 32768
-		CHUNK_COUNTER = 0
-		with open(destination, "wb") as f:
-			for chunk in response.iter_content(CHUNK_SIZE):
-				CHUNK_COUNTER +=1
-				if chunk: # filter out keep-alive new chunks
-					f.write(chunk)
-					completion_rate = '{:.2f}%'.format(((CHUNK_SIZE * CHUNK_COUNTER)/self.DATA_SIZE) * 100)
-					print(CHUNK_SIZE*CHUNK_COUNTER, 'bytes downloaded ->', completion_rate, end='\r',flush=True)
-		print('\nDownload Completed')
-		return True
-	
-	def __get_response(self):
-		id = '0B1o5TXfk1CeEY21zallLOW9YN2M'
-		URL = "https://drive.google.com/uc?export=download"
-		session = requests.Session()
-		response = session.get(URL, params = { 'id' : id }, stream = True)
-		token = self.__get_confirm_token(response)
-		if token:
-			params = { 'id' : id, 'confirm' : token }
-			response = session.get(URL, params = params, stream = True)
-			return response
-	
+		
 	def __maybe_download_file_from_google_drive(self):
 		destination = self.path+'/Images.zip'
 		response = None
 		if os.path.exists(destination):
-			if os.stat(destination).st_size != self.DATA_SIZE:
-				response = self.__get_response()
-			else:
-				return True
+			return True
 		else:
-				response = self.__get_response()
-		return self.__save_response_content(response, destination) if response is not None else False
+			# Download zip file containing the dataset images (train,test,validate)
+			gid = input('enter google drive id of images -> ')
+			subprocess.run(['gdrive','download','--path',self.path,gid])
+			for zipfile in os.scandir(self.path):
+				if zipfile.name.endswith('zip'):
+					os.rename(zipfile.path,zipfile.path.replace(zipfile.name,'Images.zip'))
+					break
+		return os.path.exists(self.path+'/Images')
 
 if __name__ == '__main__':
 	DataHandler()
