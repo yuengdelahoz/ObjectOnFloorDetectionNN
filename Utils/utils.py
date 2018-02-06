@@ -9,7 +9,7 @@
 """
 """
 
-import sys, os, shutil, cv2, shutil, pickle
+import sys, os, shutil, cv2, shutil, pickle, traceback
 import numpy as np
 from collections import namedtuple
 import threading
@@ -22,6 +22,8 @@ def clear_folder(name):
 			shutil.rmtree(name)
 		except:
 			pass
+			# print(name,'could not be deleted')
+			# traceback.print_exc(file=sys.stdout)
 
 def create_folder(name,clear_if_exists = True):
 	if clear_if_exists:
@@ -31,119 +33,8 @@ def create_folder(name,clear_if_exists = True):
 		return name
 	except:
 		pass
-
-def create_ptrials():
-	create_folder('ptrials')
-	trials = os.scandir('trials')
-	for trial in trials:
-		if trial.is_dir():
-			create_folder('p'+trial.path)
-			for folder in os.scandir(trial.path):
-				if folder.is_dir():
-					create_folder('p'+folder.path)
-					cnt = 0
-					for img in os.scandir(folder.path):
-						cnt +=1
-						if cnt % 7 == 0:
-							shutil.copyfile(img.path,'p'+img.path)
-
-def move_defective_images():
-	try:
-		os.makedirs('ptrials/trial_1506650000/color/')
-	except OSError:
-		pass
-
-	for trial in os.scandir('ptrials'):
-		if trial.is_dir() and trial.name.startswith('trial') and not trial.name in 'trial_1506650000':
-			# print(trial.name)
-			for img in os.scandir(trial.path+('/label')):
-				try:
-					if img.name.endswith('.png'):
-						label = cv2.imread(img.path)
-						if label is None:
-							color = img.path.replace('label','color')
-							if os.path.exists(color):
-								path = 'ptrials/trial_1506650000/color/'+trial.name+img.name
-								shutil.copyfile(color, path)
-								print('moving image to',path)
-								cnt +=1
-							try:
-								os.remove(img.path)
-								os.remove(color)
-							except OSError:
-								pass
-				except cv2.error as e:
-					pass
-	print('Total number of corrupted images',cnt)
-
-def simetrize_color_label():
-	cnt = 0
-	for trial in os.scandir('ptrials'):
-		if trial.is_dir() and trial.name.startswith('trial'):
-			for color in os.scandir(trial.path+('/color')):
-				if color.name.endswith('.png'):
-					label = color.path.replace('color','label')
-					if not os.path.exists(label):
-						cnt +=1
-						try:
-							os.remove(color.path)
-						except:
-							pass
-				label = img
-	print('total colors without labels',cnt)
-
-def compare_and_copy_amazon_with_google():
-	amazon_path ='/Users/yuengdelahoz/Projects/Realsense/python/ptrials' 
-	google_path = '/Users/yuengdelahoz/Google Drive/USF/Research Data/ptrials' 
-	cnt = 0
-	for trial in os.scandir(amazon_path):
-		if trial.is_dir() and trial.name.startswith('trial'):
-			for folder in os.scandir(trial.path):
-				if folder.is_dir():
-					for amazon_img in os.scandir(folder.path):
-						if amazon_img.name.endswith('.png'):
-							google_img = amazon_img.path.replace(amazon_path,google_path)
-							if not os.path.exists(google_img):
-								google_folder = google_img.replace(amazon_img.name,'')
-								if not os.path.exists(google_folder):
-									os.makedirs(google_folder)
-								print('copying image',amazon_img.path,'to',google_img)
-								shutil.copyfile(amazon_img.path, google_img)
-								cnt +=1
-								flag = True
-	print('total number of images in amazon that are not in google',cnt/2)
-
-def clear_non_color_label_folders():
-	for trial in os.scandir('ptrials'):
-		if trial.is_dir() and trial.name.startswith('trial'):
-			for folder in os.scandir(trial.path):
-				if folder.is_dir() and not ('color' in folder.name or 'label' in folder.name):
-					try:
-						print('removing', folder.path)
-						shutil.rmtree(folder.path)
-					except OSError:
-						pass
-
-def unify_color_and_label_into_one_folder():
-	try:
-		os.makedirs('images/color')
-		os.makedirs('images/label')
-	except OSError:
-		pass
-	for trial in os.scandir('ptrials'):
-		if trial.is_dir() and trial.name.startswith('trial'):
-			for folder in os.scandir(trial.path):
-				if folder.is_dir() and folder.name in 'color':
-					cnt = 0
-					for color in os.scandir(folder.path):
-						if color.name.endswith('.png'):
-							name = '{}_img_{:010}.png'.format(trial.name,cnt)
-							label_path = color.path.replace('color','label')
-							if os.path.exists(label_path):
-								shutil.copyfile(color.path,'images/color/'+name)
-								shutil.copyfile(label_path,'images/label/'+name)
-								print('Moving', color.path,label_path)
-								cnt +=1
+		# print(name,'could not be created')
+		# traceback.print_exc(file=sys.stdout)
 
 def generate_training_validation_test_sets():
 	Data = namedtuple('dataset',['training_set','testing_set','validation_set'])
@@ -180,50 +71,65 @@ def cropImages():
 	print('Done cropping')
 
 def createSuperLabels():
-	create_folder('Dataset/Images/superlabel')
+	path1 = create_folder('images/superlabel/')
 	"""
-	There are 240x240 = 57600 pixels, so every superpixels (900 in total) has 57600/900=64 pixels (12x12)
+	There are 240x240 = 57600 pixels, so every superpixels (6 in total) has 57600/6=9600 pixels (120x80)
 	The resolution of each superlabel is 8x8 pixels
 	img[rows,cols]
 	img[0,0] = 0 (black)
 	img[0,0] = 255 (white)
 	"""
-	sh = 0 # horizontal shift
-	sv = 0 # vertical shift
-	for img in os.scandir('Dataset/Images/label'):
-		print('Creating superlabel for',img.path)
-		label = cv2.imread(img.path)
+	cnt = 0
+	for img in os.scandir('images/label'):
+		# if np.random.randint(0,2) > 0:
+			# continue
+		print('Creating superlabel for',img.path,end='\r')
+		sys.stdout.write("\033[K")
+		label = cv2.imread(img.path,cv2.IMREAD_GRAYSCALE)
 		superlabel = list() # empty list where to append Superpixels
-		for sv in range(0,240,8): # 12 superlabels in the height direction
-			for sh in range(0,240,8): # 12 superlabels in the width direction
-				rst = np.sum(label[sv:sv+8,sh:sh+8])# sum all the pixel values in the superlabels. img[rows,cols]
-				if rst > 0.95 * 255 * 144 : # if pixel values sum is more than 90% white.
+		for idj,j in enumerate(range(0,240,120)): # 2 superlabels in the height direction
+			for idk,k in enumerate(range(0,240,80)): # 3 superlabels in the width direction
+				blob = label[j:j+120,k:k+80]# img[rows,cols]
+				pix_sum = np.sum(blob)
+				if pix_sum > 0.95 * 255 * 9600 : # if pixel values sum is more than 90% white.
 					superlabel.append(0) # mark superlabel as a ZERO
 				else:
 					superlabel.append(1) # mark superlabel as a ONE
-		np.save('Dataset/Images/superlabel/'+img.name.replace('.png',''),np.array(superlabel))
-	print('Done')
+		cnt +=1
+		# if cnt == 100:
+			# break
+		np.save(path1+img.name.replace('.png',''),np.array(superlabel))
+	print('Done creating superlabels,',cnt,'superlabels were created')
 
 def paintImagesAll():
-	create_folder('dataset/painted_images')
+	path1 = create_folder('painted_images/color/')
+	path2 = create_folder('painted_images/label/')
+	path3 = create_folder('painted_images/color_label/')
 	"""Iterate over original image (color) and paint (red blend) the superpixels that were identified as being part of the floor by the neural network"""
-	sh = 0 # horizontal shift
-	sv = 0 # vertical shift
-	for img in os.scandir('dataset/input'):
-		print('painting',img.name)
-		color = cv2.imread(img.path)
-		paintedImg = color.copy()
-		superlabel = np.load('dataset/superlabel/'+img.name.replace('.png','.npy'))
-		pos = 0
-		for sv in range(0,240,8): # 12 superpixels in the height direction
-			for sh in range(0,240,8): # 12 superpixels in the width direction
-				if superlabel[pos]==1:
-					red =np.zeros(color[sv:sv+8,sh:sh+8].shape)
-					red[:,:,2] = np.ones(red.shape[0:2])*255
-					paintedImg[sv:sv+8,sh:sh+8] = color[sv:sv+8,sh:sh+8]*0.5 + 0.5*red # 90% origin image, 10% red
-				pos +=1
-		cv2.imwrite('dataset/painted_images/'+img.name,paintedImg)
-	print('Done')
+	cnt = 0
+	for img in os.scandir('images/superlabel'):
+		if img.name.endswith('.npy'):
+			cnt +=1
+			print('painting',img.name,end='\r')
+			sys.stdout.write("\033[K")
+			color = cv2.imread(img.path.replace('superlabel','input').replace('npy','png'),cv2.IMREAD_COLOR)
+			label = cv2.imread(img.path.replace('superlabel','label').replace('npy','png'),cv2.IMREAD_GRAYSCALE)
+			superlabel = np.load(img.path)
+			pos = 0
+			for sv in range(0,240,120): # 2 superpixels in the height direction
+				for sh in range(0,240,80): # 3 superpixels in the width direction
+					cv2.rectangle(color,(sh,sv),(sh+80,sv+120),(255,0,0),2)
+					if superlabel[pos]==1:
+						blob = color[sv:sv+120,sh:sh+80] 
+						red =np.zeros(blob.shape)
+						red[:,:,2] = np.ones(red.shape[0:2])*255
+						color[sv:sv+120,sh:sh+80] = blob*0.5 + 0.5*red
+					pos +=1
+			color_label = np.concatenate((color,cv2.cvtColor(label,cv2.COLOR_GRAY2BGR)), axis=1)
+			cv2.imwrite(path1+img.name.replace('npy','png'),color)
+			cv2.imwrite(path2+img.name.replace('npy','png'),label)
+			cv2.imwrite(path3+img.name.replace('npy','png'),color_label)
+	print('Done painting images',cnt,'images were painted')
 
 def paintImage(image,superlabel):
 	paintedImg = image.copy()
@@ -247,13 +153,48 @@ def paintBatch(inputBatch,outputBatch,output_folder):
 		cv2.imwrite(name,pimg)
 
 class PainterThread (threading.Thread):
-	def __init__(self,inputBatch,outputBatch,output_folder='Training'):
+	def __init__(self,gt_input,gt_labels,net_output,output_folder='Training'):
 		threading.Thread.__init__(self)
-		self.inputBatch = inputBatch
-		self.outputBatch = outputBatch
+		self.input = gt_input
+		self.gt_superlabels = gt_labels
+		self.net_superlabels= net_output
 		self.folder = output_folder
 	def run(self):
-		paintBatch(self.inputBatch,self.outputBatch,self.folder)
+		path1 = create_folder('painted_images/'+self.folder+'/color_gt/')
+		path2 = create_folder('painted_images/'+self.folder+'/color_net/')
+		path3 = create_folder('painted_images/'+self.folder+'/color_gt_and_net/')
+		font = cv2.FONT_HERSHEY_SIMPLEX
+		for idx,(color_gt,superlabel_gt,superlabel_net) in enumerate(zip(self.input,self.gt_superlabels,self.net_superlabels)):
+			img_name = 'image_{:.2f}.png'.format(idx)
+			i = 0
+			color_net = color_gt.copy()
+			pos = 0
+			for sv in range(0,240,120): # 2 superpixels in the height direction
+				for sh in range(0,240,80): # 3 superpixels in the width direction
+					# Ground Truth
+					if superlabel_gt[pos]==1:
+						blob = color_gt[sv:sv+120,sh:sh+80] 
+						red =np.zeros(blob.shape)
+						red[:,:,2] = np.ones(red.shape[0:2])*255
+						color_gt[sv:sv+120,sh:sh+80] = blob*0.5 + 0.5*red
+
+					if superlabel_net[pos]==1:
+						blob = color_net[sv:sv+120,sh:sh+80] 
+						red =np.zeros(blob.shape)
+						red[:,:,2] = np.ones(red.shape[0:2])*255
+						color_net[sv:sv+120,sh:sh+80] = blob*0.5 + 0.5*red
+					pos +=1
+					cv2.rectangle(color_gt,(sh,sv),(sh+80,sv+120),(255,0,0),2)
+					cv2.rectangle(color_net,(sh,sv),(sh+80,sv+120),(255,0,0),2)
+
+			cv2.putText(color_gt,'GT',(10,15), font, 0.4,(0,255,0),1,cv2.LINE_AA)
+			cv2.putText(color_net,'NET',(10,15), font, 0.4,(0,255,0),1,cv2.LINE_AA)
+
+			color_gt_net = np.concatenate((color_gt,color_net), axis=1)
+			cv2.imwrite(path1+img_name,color_gt)
+			cv2.imwrite(path2+img_name,color_net)
+			cv2.imwrite(path3+img_name,color_gt_net)
+		print('Done painting images in batch')
 
 def calculateMetrics(GroundTruthBatch, OutputBatch):
 	''' This method calculates Accuracy, Precision, and Recall
@@ -344,6 +285,20 @@ def paint_all_images_with_text():
 			cnt +=1
 	print('Done')
 
+def log_data(folder_path,data,mode='a'):
+	try:
+		if type(data) is dict:
+			with open(folder_path+'/README.txt',mode) as f:
+				for k,v in sorted(data.items()):
+					f.write(k + " : " + str(v) + '\n')
+		else:
+			with open(folder_path+'/README.txt',mode) as f:
+				data = str(data)
+				f.write(data)
+	except:
+		traceback.print_exc(file=sys.stdout)
+
 if __name__ == '__main__':
-	paint_all_images_with_text()
+	# createSuperLabels()
+	paintImagesAll()
 

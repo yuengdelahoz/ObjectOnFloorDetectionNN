@@ -4,6 +4,7 @@
 **/*.zip
 Dataset/Images.zip
 Dataset/*.zip
+Dataset/dataset.pickle
 models.zip
 **/*.swp
 **/*.pyc
