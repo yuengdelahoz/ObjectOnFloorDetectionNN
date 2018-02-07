@@ -2,14 +2,14 @@ from Network.Net import Network
 
 n = Network()
 n.initialize('topology_04')
-n.train()
+n.train(15000)
 n.evaluate()
 
 n.initialize('topology_03')
 n.train()
 n.evaluate()
 
-n.initialize('topology_0')
+n.initialize('topology_02')
 n.train()
 n.evaluate()
 

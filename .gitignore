@@ -3,6 +3,7 @@
 **/*.jpg
 **/*.zip
 Dataset/Images.zip
+Dataset/Images
 Dataset/*.zip
 Dataset/dataset.pickle
 models.zip
