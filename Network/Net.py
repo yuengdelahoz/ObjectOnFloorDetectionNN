@@ -9,7 +9,7 @@ import operator
 import functools
 import cv2
 import os
-import shutil
+import shutil,sys,traceback
 from pprint import pprint
 
 class Network:
@@ -148,77 +148,111 @@ class Network:
 		lossFunc = list()
 
 		completed_iterations = tf.Variable(0, trainable=False, name='completed_iterations')
+
+		#Early stop variables
+		saver = tf.train.Saver()
+		try:
+			early_max = tf.Variable(0, trainable=False, name='early_max')
+		except:
+			pass
+		saver_2 = tf.train.Saver()
+
 		# Creating session and initilizing variables
 		init = tf.global_variables_initializer()
 		lossFunc = list()
-		saver = tf.train.Saver()
 
 		with tf.Session() as sess:
 			model_stored = utils.is_model_stored(self.name)
 			if model_stored:
+				sess.run(early_max.initializer)
 				print('Restoring Graph')
-				saver.restore(sess,'Models/'+self.name+'/model')
+				saver_2.restore(sess,'Models/model')
+				[print(v) for v in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)]
+				# try:
+				# except:
+					# # print('initializing early stop variables')
+					# traceback.print_exc(file=sys.stdout)
+					# early_max = tf.Variable(0, trainable=False, name='early_max')
+					# print(early_max)
+					# # early_current = tf.Variable(0, trainable=False, name='early_current')
+					# # early_iterations = tf.Variable(0, trainable=False, name='early_iterations')
+					# sess.run(early_max.initializer)
+					# # sess.run(early_current.initializer)
+					# # sess.run(early_iterations.initializer)
+					# # tf.add_to_collection(tf.GraphKeys.LOCAL_VARIABLES,early_max)
 			else:
 				sess.run(init)
 
-			lstt = tf.trainable_variables()
-			acum = 0
-			for lt in lstt:
-				ta = lt.get_shape()
-				lstd = ta.as_list()
-				mult = functools.reduce(operator.mul, lstd, 1)
-				acum = acum + mult
-			print('Number of parameters',acum) # number of trainable parameters
+			# print('local variables',tf.get_collection(tf.GraphKeys.LOCAL_VARIABLES))
+			# print('Early variables before',sess.run(early_max))
+			# sess.run(early_max.assign(10))
+			# print('Early variables after',sess.run(early_max))
+			# print('Early variables',sess.run(early_max))
+			# saver._var_list.append(early_max)
+			[print(v) for v in saver_2._var_list]
+			save_path = saver_2.save(sess,'Models/model')
 
-			comp_iters = sess.run(completed_iterations)
-			utils.create_folder('Models/'+self.name,clear_if_exists = not (comp_iters >0)) # clear Model folder if training has never taken place
-			remaining_iterations = iterations - comp_iters
-			print('Remaining Iterations:', remaining_iterations, '- Completed Iterations: ',comp_iters)
-			init_time = time.time()
-			last_saved_time = time.time()
+			print('saving',save_path)
+			# lstt = tf.trainable_variables()
+			# acum = 0
+			# for lt in lstt:
+				# ta = lt.get_shape()
+				# lstd = ta.as_list()
+				# mult = functools.reduce(operator.mul, lstd, 1)
+				# acum = acum + mult
+			# print('Number of parameters',acum) # number of trainable parameters
 
-			utils.log_data('Models/'+self.name,self.layers,mode='w')
-			utils.log_data('Models/'+self.name,{'\nFalse Negative Penalization Weight':fn_weight}) if fn_weight is not None else None
-			msg = "\nNumber of parameters = {}\nNumber of iterations = {}\nLearning rate = {}\n".format(acum,(comp_iters + remaining_iterations),learning_rate)
-			utils.log_data('Models/'+self.name,msg)
+			# comp_iters = sess.run(completed_iterations)
+			# utils.create_folder('Models/'+self.name,clear_if_exists = not (comp_iters >0)) # clear Model folder if training has never taken place
+			# remaining_iterations = iterations - comp_iters
+			# print('Remaining Iterations:', remaining_iterations, '- Completed Iterations: ',comp_iters)
+			# init_time = time.time()
+			# last_saved_time = time.time()
 
-			for i in range(remaining_iterations):
-				start = time.time()
-				batch = self.dataset.training.next_batch(50)
-				normBatch = np.array([(img-128)/128 for img in batch[0]])
-				labelBatch = [lbl for lbl in batch[1]]
+			# utils.log_data('Models/'+self.name,self.layers,mode='w')
+			# utils.log_data('Models/'+self.name,{'\nFalse Negative Penalization Weight':fn_weight}) if fn_weight is not None else None
+			# msg = "\nNumber of parameters = {}\nNumber of iterations = {}\nLearning rate = {}\n".format(acum,(comp_iters + remaining_iterations),learning_rate)
+			# utils.log_data('Models/'+self.name,msg)
 
-				train_step.run(feed_dict={self.x:normBatch,self.y:labelBatch, self.keep_prob:0.5})
-				if i%100==0 or i==remaining_iterations-1:
-					MSE = loss.eval(feed_dict={self.x:normBatch, self.y:labelBatch, self.keep_prob:1.0})
-					print("iter {}, mean square error {}, step duration -> {:.2f} secs, time since last saved -> {:.2f} secs".format(i, MSE,(time.time()-start),time.time()-last_saved_time))
-					update = comp_iters + (i+1)
-					print('updating completed iterations:',sess.run(completed_iterations.assign(update)))
+			# for i in range(remaining_iterations):
+				# start = time.time()
+				# batch = self.dataset.training.next_batch(50)
+				# normBatch = np.array([(img-128)/128 for img in batch[0]])
+				# labelBatch = [lbl for lbl in batch[1]]
 
-					save_path = saver.save(sess,'Models/'+self.name+'/model')
-					print("Model saved in file: %s" % save_path)
-					batch = self.dataset.validation.next_batch(50)
-					normBatch = np.array([(img-128)/128 for img in batch[0]])
-					labelBatch = [lbl for lbl in batch[1]]
-					results = np.round(sess.run(self.output,feed_dict={self.x:normBatch, self.y: labelBatch, self.keep_prob:1.0}))
-					print("Parcial Results")
-					acc,prec,rec = utils.calculateMetrics(labelBatch,results)
-					print('Accuracy',acc)
-					print('Precision',prec)
-					print('Recall',rec)
-					print("Parcial Results")
-					utils.PainterThread(batch[0],batch[1],results).start()
-					last_saved_time = time.time()
+				# train_step.run(feed_dict={self.x:normBatch,self.y:labelBatch, self.keep_prob:0.5})
+				# if i%100==0 or i==remaining_iterations-1:
+					# MSE = loss.eval(feed_dict={self.x:normBatch, self.y:labelBatch, self.keep_prob:1.0})
+					# print("iter {}, mean square error {}, step duration -> {:.2f} secs, time since last saved -> {:.2f} secs".format(i, MSE,(time.time()-start),time.time()-last_saved_time))
+					# update = comp_iters + (i+1)
+					# print('updating completed iterations:',sess.run(completed_iterations.assign(update)))
 
-			if remaining_iterations > 0 or not os.path.exists('Models/'+self.name+'/frozen/model.pb'):
-				self.freeze_graph_model(sess)
-			else:
-				print('Nothing to be done')
-			print('total time -> {:.2f} secs'.format(time.time()-init_time))
-		try:
-			tf.reset_default_graph()
-		except:
-			pass
+					# print('Early variables',sess.run(early_max))
+
+					# save_path = saver.save(sess,'Models/'+self.name+'/model')
+					# print("Model saved in file: %s" % save_path)
+					# batch = self.dataset.validation.next_batch(50)
+					# normBatch = np.array([(img-128)/128 for img in batch[0]])
+					# labelBatch = [lbl for lbl in batch[1]]
+					# results = np.round(sess.run(self.output,feed_dict={self.x:normBatch, self.y: labelBatch, self.keep_prob:1.0}))
+					# print("Parcial Results")
+					# acc,prec,rec = utils.calculateMetrics(labelBatch,results)
+					# print('Accuracy',acc)
+					# print('Precision',prec)
+					# print('Recall',rec)
+					# print("Parcial Results")
+					# # utils.PainterThread(batch[0],batch[1],results).start()
+					# last_saved_time = time.time()
+
+			# if remaining_iterations > 0 or not os.path.exists('Models/'+self.name+'/frozen/model.pb'):
+				# self.freeze_graph_model(sess)
+			# else:
+				# print('Nothing to be done')
+			# print('total time -> {:.2f} secs'.format(time.time()-init_time))
+		# try:
+			# tf.reset_default_graph()
+		# except:
+			# pass
 
 	def evaluate(self,topology=None):
 		if topology is None:
