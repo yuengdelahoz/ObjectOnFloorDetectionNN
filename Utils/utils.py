@@ -21,7 +21,7 @@ def clear_folder(name):
 		try:
 			shutil.rmtree(name)
 		except:
-			pass
+			 pass
 			# print(name,'could not be deleted')
 			# traceback.print_exc(file=sys.stdout)
 
@@ -235,7 +235,7 @@ def calculateMetrics(GroundTruthBatch, OutputBatch):
 			rec = TP/(TP + FN)
 			Recall.append(rec)
 		Accuracy.append(acc)
-	return np.mean(Accuracy),np.mean(Precision),np.mean(Recall)
+	return np.mean(Accuracy) if len(Accuracy)>0 else 0,np.mean(Precision)if len(Precision)>0 else 0,np.mean(Recall)if len(Recall)>0 else 0
 
 def is_model_stored(top):
 	try:
