@@ -2,7 +2,7 @@ from Network.Net import Network
 
 n = Network()
 n.initialize('topology_04')
-n.train(15000)
+n.train(20000)
 n.evaluate()
 
 n.initialize('topology_03')

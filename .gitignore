@@ -16,3 +16,4 @@ Painted_Images/
 ObjectOnFloorDetectionNN/
 .pydevproject
 venv/
+TempModels/**/*

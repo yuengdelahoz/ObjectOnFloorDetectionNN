@@ -9,7 +9,7 @@ import operator
 import functools
 import cv2
 import os
-import shutil
+import shutil,sys,traceback
 from pprint import pprint
 
 class Network:
@@ -17,12 +17,16 @@ class Network:
 		# Read Dataset
 		self.dataset = None
 		self.name = None
+		input('\nRemember to log the features you are using with this neural network. Press any key to continue.')
+
 	def initialize(self,topology):
 		self.x = tf.placeholder(tf.float32, shape =[None,240,240,3],name='input_images')
 		self.y = tf.placeholder(tf.float32, shape = [None,6],name='labels')
 		self.keep_prob = tf.placeholder(tf.float32,name='keep_prob')
 
-		self.layers = {'L0':'Network Topology'}
+		enabled_features = '+Floor Detection, +Early Stop, -FN Weights'
+		self.layers = {'L0':'Network Topology ({})'.format(enabled_features)}
+		print('Enabled features in this session',enabled_features)
 		if topology == 'topology_01':
 			self.topology1()
 		elif topology == 'topology_02':
@@ -133,11 +137,14 @@ class Network:
 		self.layers.update({'L_out':L_out.__dict__})
 
 	def train(self,iterations=10000,learning_rate = 1e-03):
+		model_save_path = 'Models/{}/'.format(self.name)
+		early_iterations_max = 500 # wait for 5000 iterations without improving to early stop
+		fn_weight = None
+
 		# reading dataset
 		if self.dataset is None:
 			self.dataset = DataHandler().build_datasets()
 		# loss function
-		fn_weight = 1.5
 		if fn_weight is None:
 			MSE = tf.reduce_mean(tf.square(self.y - self.output))
 		else:
@@ -148,19 +155,36 @@ class Network:
 		lossFunc = list()
 
 		completed_iterations = tf.Variable(0, trainable=False, name='completed_iterations')
+		s1 = tf.train.Saver()
+
+		#Early stop variables
+		early_max = tf.Variable(0, trainable=False, name='early_max',dtype = tf.float32)
+		early_iterations = tf.Variable(0, trainable=False, name='early_iterations')
+
 		# Creating session and initilizing variables
 		init = tf.global_variables_initializer()
 		lossFunc = list()
-		saver = tf.train.Saver()
+		s2 = tf.train.Saver()
 
 		with tf.Session() as sess:
-			model_stored = utils.is_model_stored(self.name)
-			if model_stored:
+			saver = s2
+			print('Training',self.name)
+			if os.path.exists(model_save_path+'model.meta'):
 				print('Restoring Graph')
-				saver.restore(sess,'Models/'+self.name+'/model')
+				try:
+					s2.restore(sess,model_save_path+'model')
+				except:
+					sess.run(init)
+					s1.restore(sess,model_save_path+'model')
+					save_path = s2.save(sess,model_save_path+'model')
+					print('Updating model with new Variables',save_path)
 			else:
 				sess.run(init)
+			if early_iterations.eval() >= early_iterations_max: 
+				print('Nothing to be done')
+				return
 
+			# Calculating number of trainable parameters
 			lstt = tf.trainable_variables()
 			acum = 0
 			for lt in lstt:
@@ -170,18 +194,13 @@ class Network:
 				acum = acum + mult
 			print('Number of parameters',acum) # number of trainable parameters
 
-			comp_iters = sess.run(completed_iterations)
+			comp_iters = completed_iterations.eval()
 			utils.create_folder('Models/'+self.name,clear_if_exists = not (comp_iters >0)) # clear Model folder if training has never taken place
 			remaining_iterations = iterations - comp_iters
 			print('Remaining Iterations:', remaining_iterations, '- Completed Iterations: ',comp_iters)
+
 			init_time = time.time()
 			last_saved_time = time.time()
-
-			utils.log_data('Models/'+self.name,self.layers,mode='w')
-			utils.log_data('Models/'+self.name,{'\nFalse Negative Penalization Weight':fn_weight}) if fn_weight is not None else None
-			msg = "\nNumber of parameters = {}\nNumber of iterations = {}\nLearning rate = {}\n".format(acum,(comp_iters + remaining_iterations),learning_rate)
-			utils.log_data('Models/'+self.name,msg)
-
 			for i in range(remaining_iterations):
 				start = time.time()
 				batch = self.dataset.training.next_batch(50)
@@ -189,14 +208,12 @@ class Network:
 				labelBatch = [lbl for lbl in batch[1]]
 
 				train_step.run(feed_dict={self.x:normBatch,self.y:labelBatch, self.keep_prob:0.5})
-				if i%100==0 or i==remaining_iterations-1:
+				if i%10==0 or i==remaining_iterations-1:
 					MSE = loss.eval(feed_dict={self.x:normBatch, self.y:labelBatch, self.keep_prob:1.0})
 					print("iter {}, mean square error {}, step duration -> {:.2f} secs, time since last saved -> {:.2f} secs".format(i, MSE,(time.time()-start),time.time()-last_saved_time))
 					update = comp_iters + (i+1)
 					print('updating completed iterations:',sess.run(completed_iterations.assign(update)))
 
-					save_path = saver.save(sess,'Models/'+self.name+'/model')
-					print("Model saved in file: %s" % save_path)
 					batch = self.dataset.validation.next_batch(50)
 					normBatch = np.array([(img-128)/128 for img in batch[0]])
 					labelBatch = [lbl for lbl in batch[1]]
@@ -206,14 +223,37 @@ class Network:
 					print('Accuracy',acc)
 					print('Precision',prec)
 					print('Recall',rec)
-					print("Parcial Results")
-					utils.PainterThread(batch[0],batch[1],results).start()
+
+					early_current = acc *0.2 + prec*0.4 + rec*0.4
+					e_max = early_max.eval()
+					delta_max_early = early_current - e_max
+					print('Early stop values', early_current, e_max, delta_max_early, 'early_iterations',early_iterations.eval())
+					if delta_max_early > 0.001:
+						model_max_path = utils.create_folder(model_save_path+'max/')
+						sess.run(early_max.assign(early_current)) # update max value
+						sess.run(early_iterations.assign(0)) # reset early_iterations counter
+						save_path = saver.save(sess,model_max_path+'model')
+						print("Model saved in file: %s" % save_path)
+						print('early max after update',early_max.eval())
+						utils.PainterThread(batch[0],batch[1],results).start()
+						
+					else:
+						e_iters = early_iterations.eval()
+						if e_iters >= early_iterations_max: # no improvement has been detected. STOP
+							save_path = saver.save(sess,model_save_path+'model')
+							break
+						elif e_iters >0 and e_iters % 100==0:
+							learning_rate = learning_rate*0.95 # dicrease learning rate if no improvement is detected
+						sess.run(early_iterations.assign_add(1))
+					save_path = saver.save(sess,model_save_path+'model')
+					print("Model saved in file: %s \n\n" % save_path)
 					last_saved_time = time.time()
 
-			if remaining_iterations > 0 or not os.path.exists('Models/'+self.name+'/frozen/model.pb'):
-				self.freeze_graph_model(sess)
-			else:
-				print('Nothing to be done')
+			utils.log_data(model_save_path,self.layers,mode='w')
+			utils.log_data(model_save_path,{'\nFalse Negative Penalization Weight':fn_weight}) if fn_weight is not None else None
+			msg = "\nNumber of parameters = {}\nNumber of iterations = {}\nLearning rate = {}\n".format(acum,comp_iters,learning_rate)
+			utils.log_data(model_save_path,msg)
+			self.freeze_graph_model(sess)
 			print('total time -> {:.2f} secs'.format(time.time()-init_time))
 		try:
 			tf.reset_default_graph()
@@ -227,24 +267,43 @@ class Network:
 		if self.dataset is None:
 			self.dataset = DataHandler().build_datasets()
 
-		if not utils.is_model_stored(topology):
-			print("No model stored to be restored.")
+		topology_path ='TempModels/{}/'.format(topology)
+		if not os.path.exists(topology_path+'max/model.meta'):
+			print('No model stored to be restored.')
 			return
 		print('Evaluating',topology)
 		try:
 			tf.reset_default_graph()
 		except:
 			pass
-		topology_path ='Models/{}/'.format(topology)
-		saver = tf.train.import_meta_graph(topology_path+'model.meta')
+		s1 = tf.train.import_meta_graph(topology_path+'max/model.meta')
 		g = tf.get_default_graph()
 		x = g.get_tensor_by_name("input_images:0")
 		y = g.get_tensor_by_name("labels:0")
 		keep_prob = g.get_tensor_by_name("keep_prob:0")
 		output= g.get_tensor_by_name("superpixels:0")
+
+		try:
+			is_trained= g.get_tensor_by_name("is_trained:0")
+		except:
+			is_trained= tf.Variable(0, trainable=False, name='is_trained')
+			init = is_trained.initializer
+
+		s2 = tf.train.Saver()
 		with tf.Session() as sess:
-			saver.restore(sess,topology_path + 'model')
+			saver = s2
 			print("Model restored.")
+			try:
+				s2.restore(sess,topology_path + 'max/model')
+				print('restoring s2')
+			except:
+				sess.run(init)
+				s1.restore(sess,topology_path + 'max/model')
+				print('restoring s1')
+
+			if is_trained.eval() > 0: 
+				print('Trainig has already been completed')
+				return
 			# Evaluating testing set
 			metrics = []
 			for  i in range (self.dataset.testing.num_of_images//50):
@@ -255,11 +314,13 @@ class Network:
 				met = utils.calculateMetrics(testLabels,results)
 				print ('iter',i,'Metrics',met,end='\r')
 				metrics.append(met)
+				break
 			metrics = np.mean(metrics,axis=0)
 			eval_metrics = '\nEvaluation metrics\nAccuracy: {0:.2f}, Precision: {1:.2f}, Recall {2:.2f}'.format(metrics[0],metrics[1],metrics[2])
 			print(eval_metrics)
-
 			utils.log_data(topology_path,eval_metrics)
+			sess.run(is_trained.assign(1)) # mark model as already evaluated
+			s2.save(sess,topology_path + 'max/model')
 			if results is not None:
 				utils.PainterThread(batch[0],batch[1],results,output_folder='Testing').start()
 		try:
@@ -288,7 +349,7 @@ class Network:
 
 		if session is None:
 			session = tf.Session()
-			topology_path ='Models/{}/'.format(topology)
+			topology_path ='Models/{}/max/'.format(topology)
 			saver = tf.train.import_meta_graph(topology_path+'model.meta')
 			saver.restore(session,topology_path + 'model')
 
