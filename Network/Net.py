@@ -20,11 +20,15 @@ class Network:
 		input('\nRemember to log the features you are using with this neural network. Press any key to continue.')
 
 	def initialize(self,topology):
+		try:
+			tf.reset_default_graph()
+		except:
+			pass
 		self.x = tf.placeholder(tf.float32, shape =[None,240,240,3],name='input_images')
 		self.y = tf.placeholder(tf.float32, shape = [None,6],name='labels')
 		self.keep_prob = tf.placeholder(tf.float32,name='keep_prob')
 
-		enabled_features = '+Floor Detection, +Early Stop, -FN Weights'
+		enabled_features = '+Floor Detection, +Early Stop, +FN Weights'
 		self.layers = {'L0':'Network Topology ({})'.format(enabled_features)}
 		print('Enabled features in this session',enabled_features)
 		if topology == 'topology_01':
@@ -138,8 +142,8 @@ class Network:
 
 	def train(self,iterations=10000,learning_rate = 1e-03):
 		model_save_path = 'Models/{}/'.format(self.name)
-		early_iterations_max = 500 # wait for 5000 iterations without improving to early stop
-		fn_weight = None
+		early_iterations_max = 200 # wait for 2000 iterations without improving to early stop
+		fn_weight = 1.2
 
 		# reading dataset
 		if self.dataset is None:
@@ -235,7 +239,7 @@ class Network:
 						save_path = saver.save(sess,model_max_path+'model')
 						print("Model saved in file: %s" % save_path)
 						print('early max after update',early_max.eval())
-						utils.PainterThread(batch[0],batch[1],results).start()
+						utils.Painter(batch[0],batch[1],results,output_folder='Training/'+self.name).run()
 						
 					else:
 						e_iters = early_iterations.eval()
@@ -255,27 +259,24 @@ class Network:
 			utils.log_data(model_save_path,msg)
 			self.freeze_graph_model(sess)
 			print('total time -> {:.2f} secs'.format(time.time()-init_time))
+
+	def evaluate(self,topology=None):
 		try:
 			tf.reset_default_graph()
 		except:
 			pass
 
-	def evaluate(self,topology=None):
 		if topology is None:
 			topology = self.name
 
 		if self.dataset is None:
 			self.dataset = DataHandler().build_datasets()
 
-		topology_path ='TempModels/{}/'.format(topology)
+		topology_path ='Models/{}/'.format(topology)
 		if not os.path.exists(topology_path+'max/model.meta'):
 			print('No model stored to be restored.')
 			return
 		print('Evaluating',topology)
-		try:
-			tf.reset_default_graph()
-		except:
-			pass
 		s1 = tf.train.import_meta_graph(topology_path+'max/model.meta')
 		g = tf.get_default_graph()
 		x = g.get_tensor_by_name("input_images:0")
@@ -283,26 +284,31 @@ class Network:
 		keep_prob = g.get_tensor_by_name("keep_prob:0")
 		output= g.get_tensor_by_name("superpixels:0")
 
-		try:
-			is_trained= g.get_tensor_by_name("is_trained:0")
-		except:
-			is_trained= tf.Variable(0, trainable=False, name='is_trained')
-			init = is_trained.initializer
-
-		s2 = tf.train.Saver()
 		with tf.Session() as sess:
-			saver = s2
+			s1.restore(sess,topology_path + 'max/model')
 			print("Model restored.")
-			try:
-				s2.restore(sess,topology_path + 'max/model')
-				print('restoring s2')
-			except:
-				sess.run(init)
-				s1.restore(sess,topology_path + 'max/model')
-				print('restoring s1')
 
-			if is_trained.eval() > 0: 
-				print('Trainig has already been completed')
+			eval_vars = {'num_of_evals':'','accuracy':'','precision':'','recall':''} # additonal variables to store evaluation results
+			for name in eval_vars.keys():
+				flag = True
+				for v in tf.global_variables(scope='evaluation'):
+					if name in v.name:
+						# print('updating evaluation_variables',v)
+						eval_vars[name] = v
+						flag = False
+						break
+				if flag:
+					with tf.variable_scope('evaluation'):
+						eval_vars[name] = tf.Variable(0,trainable=False,name=name,dtype=tf.float32)
+						sess.run(eval_vars[name].initializer)
+					# print('creating evaluation_variables',eval_vars[name])
+
+			if eval_vars['num_of_evals'].eval() > 0:
+				eval_metrics = '\nEvaluation metrics\nAccuracy: {0:.2f}, Precision: {1:.2f}, Recall {2:.2f}'.format(
+						eval_vars['accuracy'].eval(),
+						eval_vars['precision'].eval(),
+						eval_vars['recall'].eval())
+				print('Training has already been completed',eval_metrics)
 				return
 			# Evaluating testing set
 			metrics = []
@@ -314,20 +320,27 @@ class Network:
 				met = utils.calculateMetrics(testLabels,results)
 				print ('iter',i,'Metrics',met,end='\r')
 				metrics.append(met)
-				break
+
 			metrics = np.mean(metrics,axis=0)
 			eval_metrics = '\nEvaluation metrics\nAccuracy: {0:.2f}, Precision: {1:.2f}, Recall {2:.2f}'.format(metrics[0],metrics[1],metrics[2])
 			print(eval_metrics)
 			utils.log_data(topology_path,eval_metrics)
-			sess.run(is_trained.assign(1)) # mark model as already evaluated
-			s2.save(sess,topology_path + 'max/model')
+
+			sess.run(eval_vars['num_of_evals'].assign_add(1)) # mark model as already evaluated
+			sess.run(eval_vars['accuracy'].assign(metrics[0])) # 
+			sess.run(eval_vars['precision'].assign(metrics[1])) # 
+			sess.run(eval_vars['recall'].assign(metrics[2])) # 
+			tf.train.Saver().save(sess,topology_path + 'max/model')
+
 			if results is not None:
-				utils.PainterThread(batch[0],batch[1],results,output_folder='Testing').start()
+				utils.Painter(batch[0],batch[1],results,output_folder='Testing/'+topology).run()
 		try:
 			tf.reset_default_graph()
 		except:
 			pass
 		shutil.copyfile('Dataset/dataset.pickle',topology_path+'dataset.pickle')
+		shutil.rmtree(topology_path+'testing_images',ignore_errors=True)
+		shutil.move('painted_images/Testing/'+topology,topology_path+'testing_images')
 
 	def freeze_graph_model(self, session = None, g = None , topology = None):
 		if topology is None:

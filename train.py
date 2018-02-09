@@ -6,11 +6,11 @@ n.train(20000)
 n.evaluate()
 
 n.initialize('topology_03')
-n.train()
+n.train(20000)
 n.evaluate()
 
 n.initialize('topology_02')
-n.train()
+n.train(20000)
 n.evaluate()
 
 n.initialize('topology_05')

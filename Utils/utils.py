@@ -152,9 +152,8 @@ def paintBatch(inputBatch,outputBatch,output_folder):
 		name = '{}/img_{:02}.png'.format(output_folder,i)
 		cv2.imwrite(name,pimg)
 
-class PainterThread (threading.Thread):
+class Painter ():
 	def __init__(self,gt_input,gt_labels,net_output,output_folder='Training'):
-		threading.Thread.__init__(self)
 		self.input = gt_input
 		self.gt_superlabels = gt_labels
 		self.net_superlabels= net_output
@@ -165,7 +164,7 @@ class PainterThread (threading.Thread):
 		path3 = create_folder('painted_images/'+self.folder+'/color_gt_and_net/')
 		font = cv2.FONT_HERSHEY_SIMPLEX
 		for idx,(color_gt,superlabel_gt,superlabel_net) in enumerate(zip(self.input,self.gt_superlabels,self.net_superlabels)):
-			img_name = 'image_{:.2f}.png'.format(idx)
+			img_name = 'image_{:d}.png'.format(idx)
 			i = 0
 			color_net = color_gt.copy()
 			pos = 0
@@ -286,13 +285,17 @@ def paint_all_images_with_text():
 	print('Done')
 
 def log_data(folder_path,data,mode='a'):
+	if folder_path.endswith('/'):
+		readme = 'README.txt'
+	else:
+		readme = '/README.txt'
 	try:
 		if type(data) is dict:
-			with open(folder_path+'/README.txt',mode) as f:
+			with open(folder_path+readme,mode) as f:
 				for k,v in sorted(data.items()):
 					f.write(k + " : " + str(v) + '\n')
 		else:
-			with open(folder_path+'/README.txt',mode) as f:
+			with open(folder_path+readme,mode) as f:
 				data = str(data)
 				f.write(data)
 	except:
